@@ -19,6 +19,24 @@
 --
 -- Returns JSONB with insert counts and a `was_noop` flag for the orchestrator
 -- to surface in logs / signup-flow telemetry.
+--
+-- effective_date for rate inserts:
+--   All bootstrap rates are inserted with `effective_date = CURRENT_DATE`.
+--   From the tenant's perspective, the master grid "starts today" — the day
+--   the tenant signed up (or the day this RPC was first called for them).
+--   Backdating ("these are our rates effective Jan 1, 2026, not bootstrap day")
+--   is intentionally NOT supported here. If the owner needs that, they edit
+--   each cell via the Master Comp Grid UI (Phase 5), which writes a new row
+--   with the chosen earlier effective_date and closes the bootstrap row's
+--   end_date.
+--
+-- Payload validation:
+--   Pre-flight checks raise EXCEPTION (not silently drop rows) if any payload
+--   row is missing required fields. The most common failure mode the check
+--   catches is a parser bug that omits product_type — without the check, the
+--   inner JOIN to comp_grid_carriers would silently produce zero matches and
+--   the rate insert would succeed-with-zero-rows, which is much worse than a
+--   loud error.
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.bootstrap_agora_grid_for_tenant(
@@ -35,10 +53,55 @@ DECLARE
     v_carriers_inserted  INT := 0;
     v_products_inserted  INT := 0;
     v_rates_inserted     INT := 0;
+    v_invalid_count      INT;
 BEGIN
     -- Sanity check: tenant must exist
     IF NOT EXISTS (SELECT 1 FROM public.tenants WHERE id = p_tenant_id) THEN
         RAISE EXCEPTION 'tenant % does not exist', p_tenant_id;
+    END IF;
+
+    -- Pre-flight: payload validation. Fail loudly on missing required fields
+    -- rather than silently dropping rows in the inner JOINs below.
+
+    SELECT COUNT(*) INTO v_invalid_count
+    FROM jsonb_to_recordset(p_payload -> 'carriers') AS c(
+        carrier_name TEXT, product_type TEXT
+    )
+    WHERE c.carrier_name IS NULL OR c.carrier_name = ''
+       OR c.product_type IS NULL OR c.product_type = '';
+    IF v_invalid_count > 0 THEN
+        RAISE EXCEPTION
+            'bootstrap payload: % carrier row(s) missing carrier_name or product_type',
+            v_invalid_count;
+    END IF;
+
+    SELECT COUNT(*) INTO v_invalid_count
+    FROM jsonb_to_recordset(p_payload -> 'products') AS p(
+        carrier_name TEXT, product_name TEXT, product_type TEXT
+    )
+    WHERE p.carrier_name IS NULL OR p.carrier_name = ''
+       OR p.product_name IS NULL OR p.product_name = ''
+       OR p.product_type IS NULL OR p.product_type = '';
+    IF v_invalid_count > 0 THEN
+        RAISE EXCEPTION
+            'bootstrap payload: % product row(s) missing carrier_name, product_name, or product_type',
+            v_invalid_count;
+    END IF;
+
+    SELECT COUNT(*) INTO v_invalid_count
+    FROM jsonb_to_recordset(p_payload -> 'rates') AS r(
+        position_code TEXT, carrier_name TEXT, product_name TEXT,
+        commission_pct NUMERIC, product_type TEXT
+    )
+    WHERE r.position_code IS NULL OR r.position_code = ''
+       OR r.carrier_name IS NULL  OR r.carrier_name = ''
+       OR r.product_name IS NULL  OR r.product_name = ''
+       OR r.commission_pct IS NULL
+       OR r.product_type IS NULL  OR r.product_type = '';
+    IF v_invalid_count > 0 THEN
+        RAISE EXCEPTION
+            'bootstrap payload: % rate row(s) missing position_code, carrier_name, product_name, commission_pct, or product_type',
+            v_invalid_count;
     END IF;
 
     -- 1. Positions  (10 rows: 9 commissioned + 80 Associate)

@@ -220,17 +220,29 @@ describe("mergeBootstrapPayload — combined Life + Annuity", () => {
     expect(merged.rates.length).toBe(479);
   });
 
-  test("Lincoln Bonus is null at positions 120 and below (the 7 missing cells)", () => {
+  test("Lincoln Bonus null cells are locked: rates ONLY at 130 + 125, NEVER at 120-90", () => {
     const bonusRates = life.rates.filter(
       (r) =>
         r.carrier_name === "Lincoln Financial Group" &&
         r.product_name.startsWith("TermAccelerator") &&
         r.product_variant === "Bonus",
     );
-    // Bonus has rate values only at positions 130 and 125
+
+    // Positive lock: Bonus rate rows exist ONLY at positions 130 and 125
     expect(bonusRates.map((r) => r.position_code).sort()).toEqual(["125", "130"]);
     expect(bonusRates.find((r) => r.position_code === "130")?.commission_pct).toBe(10);
     expect(bonusRates.find((r) => r.position_code === "125")?.commission_pct).toBe(5);
+
+    // Negative lock: explicit per-position assertion that NO Bonus rate row
+    // exists at any of the 7 deliberate-null positions. Catches future parser
+    // changes that silently fill these cells.
+    const NULL_BONUS_POSITIONS = ["120", "115", "110", "105", "100", "95", "90"];
+    for (const code of NULL_BONUS_POSITIONS) {
+      const row = bonusRates.find((r) => r.position_code === code);
+      expect(row).toBeUndefined();
+    }
+    // And the totals reconcile: 9 commissioned positions − 7 null = 2 with rates.
+    expect(bonusRates.length).toBe(2);
   });
 
   test("merged payload printout (informational — counts surface in test log)", () => {
