@@ -15,7 +15,22 @@
 --   - comp grid tables (Phase 2 of build = comp-grid-build-spec Phase 1)
 --   - agent_positions time-stamped position history (Phase 2 of build)
 --   - white-label `agency_id` layer (defer until single-agency build is solid)
---   - signup edge function (separate concern from schema migration)
+--   - signup edge function (separate concern from schema migration; follow the
+--     architectural template referenced as commit d772747 in the wiki log)
+--
+-- AGENCY-ID-READY POSTURE
+--   This migration is single-agency by design but structured so the white-label
+--   migration is mechanical, not architectural. When agencies ship per
+--   white-label-and-sub-account-architecture, the follow-up migration will:
+--     1. Create `agencies` + `agency_brand_profiles` + `custom_domains` tables.
+--     2. Add `agency_id UUID NOT NULL REFERENCES public.agencies(id)` denormalized
+--        to every existing table (tenants, agents, and every Phase 2+ table).
+--     3. Add `current_agency_id()` helper analogous to `current_tenant_id()`.
+--     4. Update every RLS policy to AND `agency_id = current_agency_id()`.
+--     5. Drop the `agents_unique_email_per_tenant` constraint and replace with
+--        `agents_unique_email_per_agency` (same email allowed across agencies,
+--        unique within an agency — preserves carrier ingest matching).
+--   Constraint and policy names in this file are chosen to make those swaps clean.
 -- =============================================================================
 
 BEGIN;
@@ -32,7 +47,8 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;  -- gen_random_uuid()
 CREATE TABLE public.tenants (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            TEXT NOT NULL,
-    slug            TEXT NOT NULL UNIQUE,
+    slug            TEXT NOT NULL UNIQUE
+                        CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
     owner_agent_id  UUID,  -- FK added after agents table; nullable during signup bootstrap
     status          TEXT NOT NULL DEFAULT 'active'
                         CHECK (status IN ('active', 'paused', 'cancelled')),
@@ -53,7 +69,7 @@ COMMENT ON COLUMN public.tenants.feature_flags IS
 CREATE TYPE public.agent_status AS ENUM ('active', 'inactive', 'archived');
 
 CREATE TABLE public.agents (
-    id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE RESTRICT,
     tenant_id       UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     email           TEXT NOT NULL,
     first_name      TEXT,
@@ -69,7 +85,10 @@ CREATE TABLE public.agents (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-    UNIQUE (tenant_id, email)
+    CONSTRAINT agents_unique_email_per_tenant UNIQUE (tenant_id, email)
+    -- When white-label ships, this constraint is dropped and replaced with
+    -- agents_unique_email_per_agency UNIQUE (agency_id, email). See the
+    -- agency-id-ready posture note at the top of this file.
 );
 
 COMMENT ON COLUMN public.agents.upline_email IS
@@ -130,6 +149,12 @@ CREATE TRIGGER agents_resolve_upline_before_upd
     BEFORE UPDATE OF upline_email, tenant_id ON public.agents
     FOR EACH ROW EXECUTE FUNCTION public.resolve_upline_agent_id();
 
+-- Multi-match rule: when a new agent is inserted, ALL pending downlines in the
+-- same tenant whose upline_email matches the new agent's email are linked in a
+-- single UPDATE. This is deterministic — multiple downlines pointing at the
+-- same upline_email all share the same intended upline by definition, so they
+-- all become children of the new agent. (The reverse case — two agents in the
+-- same tenant having the same email — is blocked by agents_unique_email_per_tenant.)
 CREATE OR REPLACE FUNCTION public.backfill_orphan_upline_pointers()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -202,6 +227,14 @@ $$;
 
 -- Returns the recursive descendant set of root_agent_id (excluding self).
 -- Walks via upline_agent_id within the same tenant.
+--
+-- Cycle / depth protection (defense in depth):
+--   1. Path tracking: a candidate agent is excluded if its id already appears
+--      in the path from root, preventing any cycle from looping.
+--   2. Hard depth cap: 100. Real insurance hierarchies are 5-15 deep at most;
+--      100 is a safety stop in case path tracking is bypassed by a bug.
+-- Either condition alone would catch a cycle; both are present so a corrupt
+-- import (upline pointing to its own descendant) cannot run unbounded.
 CREATE OR REPLACE FUNCTION public.descendants_of(root_agent_id UUID)
 RETURNS TABLE (agent_id UUID)
 LANGUAGE sql
@@ -210,13 +243,15 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
     WITH RECURSIVE tree AS (
-        SELECT a.id, a.tenant_id
+        SELECT a.id, a.tenant_id, 1 AS depth, ARRAY[a.id] AS path_ids
         FROM public.agents a
         WHERE a.upline_agent_id = root_agent_id
         UNION ALL
-        SELECT a.id, a.tenant_id
+        SELECT a.id, a.tenant_id, t.depth + 1, t.path_ids || a.id
         FROM public.agents a
         JOIN tree t ON a.upline_agent_id = t.id AND a.tenant_id = t.tenant_id
+        WHERE t.depth < 100
+          AND a.id <> ALL(t.path_ids)
     )
     SELECT id FROM tree;
 $$;
