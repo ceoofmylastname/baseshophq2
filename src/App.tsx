@@ -9,6 +9,7 @@ import { DashboardPage } from "@/pages/Dashboard";
 import { AgentsPage } from "@/pages/Agents";
 import { AgentProfilePage } from "@/pages/AgentProfile";
 import { IngestPage } from "@/pages/Ingest";
+import { MyRatesPage } from "@/pages/MyRates";
 import { MasterGridPage } from "@/pages/MasterGrid";
 import { PoliciesPage } from "@/pages/Policies";
 import { SettingsPage } from "@/pages/Settings";
@@ -50,6 +51,7 @@ export default function App() {
               }
             />
             <Route path="/policies"  element={<PoliciesPage />} />
+            <Route path="/my-rates"  element={<MyRatesPage />} />
             <Route path="/settings"  element={<SettingsPage />} />
           </Route>
 

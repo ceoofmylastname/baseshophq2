@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, BarChart3, FileText, Settings, Upload } from "lucide-react";
+import { Home, Users, BarChart3, FileText, Settings, Upload, Wallet } from "lucide-react";
 import { useIsOwner } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
   { to: "/master-grid", label: "Master Grid", icon: BarChart3, ownerOnly: true },
   { to: "/ingest",    label: "Ingest",    icon: Upload, ownerOnly: true },
   { to: "/policies",  label: "Policies",  icon: FileText },
+  { to: "/my-rates",  label: "My Rates",  icon: Wallet },
   { to: "/settings",  label: "Settings",  icon: Settings },
 ];
 
