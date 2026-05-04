@@ -107,6 +107,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(400, { ok: false, error_code: "batch_too_large", error_message: "max 200 rows per commit batch" });
   }
 
+  const startedAt = new Date().toISOString();
   const results: CommitResult[] = [];
   for (const row of rows) {
     try {
@@ -138,6 +139,27 @@ Deno.serve(async (req: Request) => {
         error_message: e instanceof Error ? e.message : String(e),
       });
     }
+  }
+
+  // Phase 10A: log this batch as an ingest_runs row (best-effort; failure here
+  // does not fail the whole request — the policies have already inserted).
+  try {
+    const completedAt = new Date().toISOString();
+    const rowsAssigned = results.filter((r) => r.policy_id && r.agent_id).length;
+    const rowsOrphan = results.filter((r) => r.flags?.includes("orphan")).length;
+    const rowsSkipped = rows.length - results.length;
+    await admin.rpc("log_ingest_run", {
+      p_tenant_id: tenantId,
+      p_started_at: startedAt,
+      p_completed_at: completedAt,
+      p_rows_total: rows.length,
+      p_rows_assigned: rowsAssigned,
+      p_rows_orphan: rowsOrphan,
+      p_rows_skipped: rowsSkipped,
+      p_started_by_user_id: user.id,
+    });
+  } catch (_e) {
+    // Swallow logging errors; the ingest itself succeeded.
   }
 
   return jsonResponse(200, { ok: true, results });

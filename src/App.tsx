@@ -9,6 +9,7 @@ import { DashboardPage } from "@/pages/Dashboard";
 import { AgentsPage } from "@/pages/Agents";
 import { AgentProfilePage } from "@/pages/AgentProfile";
 import { IngestPage } from "@/pages/Ingest";
+import { IngestRunDetailPage } from "@/pages/IngestRunDetail";
 import { MyRatesPage } from "@/pages/MyRates";
 import { MasterGridPage } from "@/pages/MasterGrid";
 import { PoliciesPage } from "@/pages/Policies";
@@ -47,6 +48,14 @@ export default function App() {
               element={
                 <RequireOwner>
                   <IngestPage />
+                </RequireOwner>
+              }
+            />
+            <Route
+              path="/ingest/history/:runId"
+              element={
+                <RequireOwner>
+                  <IngestRunDetailPage />
                 </RequireOwner>
               }
             />
