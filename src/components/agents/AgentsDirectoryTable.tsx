@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { DirectoryRow } from "@/hooks/useAgentsDirectory";
 import {
   Table,
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 type Props = { rows: DirectoryRow[] };
 
 export function AgentsDirectoryTable({ rows }: Props) {
+  const navigate = useNavigate();
   if (rows.length === 0) {
     return (
       <div className="rounded-md border p-8 text-center text-sm text-muted-foreground">
@@ -39,7 +41,11 @@ export function AgentsDirectoryTable({ rows }: Props) {
               ? `${row.current_position_code} ${row.current_position_name ?? ""}`.trim()
               : "—";
             return (
-              <TableRow key={row.id}>
+              <TableRow
+                key={row.id}
+                className="cursor-pointer hover:bg-muted/40"
+                onClick={() => navigate(`/agents/${row.id}`)}
+              >
                 <TableCell className="font-medium">{name}</TableCell>
                 <TableCell className="text-muted-foreground">{row.email}</TableCell>
                 <TableCell>

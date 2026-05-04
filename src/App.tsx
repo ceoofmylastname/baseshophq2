@@ -7,6 +7,7 @@ import { LoginPage } from "@/pages/Login";
 import { SignupPage } from "@/pages/Signup";
 import { DashboardPage } from "@/pages/Dashboard";
 import { AgentsPage } from "@/pages/Agents";
+import { AgentProfilePage } from "@/pages/AgentProfile";
 import { CompGridPage } from "@/pages/CompGrid";
 import { PoliciesPage } from "@/pages/Policies";
 import { SettingsPage } from "@/pages/Settings";
@@ -28,7 +29,8 @@ export default function App() {
           >
             <Route path="/"          element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/agents"    element={<AgentsPage />} />
+            <Route path="/agents"           element={<AgentsPage />} />
+            <Route path="/agents/:agentId"  element={<AgentProfilePage />} />
             <Route
               path="/comp-grid"
               element={
