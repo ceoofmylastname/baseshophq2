@@ -28,7 +28,7 @@ const NAV: NavItem[] = [
   { to: "/agents",    label: "Agents",    icon: Users },
   { to: "/master-grid", label: "Master Grid", icon: BarChart3, ownerOnly: true },
   { to: "/ingest",    label: "Ingest",    icon: Upload, ownerOnly: true },
-  { to: "/policies",  label: "Policies",  icon: FileText },
+  { to: "/book-of-business", label: "Book of Business", icon: FileText },
   { to: "/my-rates",  label: "My Rates",  icon: Wallet },
   { to: "/settings",  label: "Settings",  icon: Settings },
 ];

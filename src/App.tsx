@@ -12,7 +12,8 @@ import { IngestPage } from "@/pages/Ingest";
 import { IngestRunDetailPage } from "@/pages/IngestRunDetail";
 import { MyRatesPage } from "@/pages/MyRates";
 import { MasterGridPage } from "@/pages/MasterGrid";
-import { PoliciesPage } from "@/pages/Policies";
+import { BookOfBusinessPage } from "@/pages/BookOfBusiness";
+import { PolicyDetailPage } from "@/pages/PolicyDetail";
 import { SettingsPage } from "@/pages/Settings";
 
 export default function App() {
@@ -59,7 +60,9 @@ export default function App() {
                 </RequireOwner>
               }
             />
-            <Route path="/policies"  element={<PoliciesPage />} />
+            <Route path="/policies"        element={<Navigate to="/book-of-business" replace />} />
+            <Route path="/book-of-business" element={<BookOfBusinessPage />} />
+            <Route path="/policy/:policyId" element={<PolicyDetailPage />} />
             <Route path="/my-rates"  element={<MyRatesPage />} />
             <Route path="/settings"  element={<SettingsPage />} />
           </Route>
