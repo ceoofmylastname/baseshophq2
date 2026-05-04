@@ -8,6 +8,7 @@ import { SignupPage } from "@/pages/Signup";
 import { DashboardPage } from "@/pages/Dashboard";
 import { AgentsPage } from "@/pages/Agents";
 import { AgentProfilePage } from "@/pages/AgentProfile";
+import { IngestPage } from "@/pages/Ingest";
 import { CompGridPage } from "@/pages/CompGrid";
 import { PoliciesPage } from "@/pages/Policies";
 import { SettingsPage } from "@/pages/Settings";
@@ -36,6 +37,14 @@ export default function App() {
               element={
                 <RequireOwner>
                   <CompGridPage />
+                </RequireOwner>
+              }
+            />
+            <Route
+              path="/ingest"
+              element={
+                <RequireOwner>
+                  <IngestPage />
                 </RequireOwner>
               }
             />
