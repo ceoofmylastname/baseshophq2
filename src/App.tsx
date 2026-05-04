@@ -9,7 +9,7 @@ import { DashboardPage } from "@/pages/Dashboard";
 import { AgentsPage } from "@/pages/Agents";
 import { AgentProfilePage } from "@/pages/AgentProfile";
 import { IngestPage } from "@/pages/Ingest";
-import { CompGridPage } from "@/pages/CompGrid";
+import { MasterGridPage } from "@/pages/MasterGrid";
 import { PoliciesPage } from "@/pages/Policies";
 import { SettingsPage } from "@/pages/Settings";
 
@@ -32,11 +32,12 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/agents"           element={<AgentsPage />} />
             <Route path="/agents/:agentId"  element={<AgentProfilePage />} />
+            <Route path="/comp-grid" element={<Navigate to="/master-grid" replace />} />
             <Route
-              path="/comp-grid"
+              path="/master-grid"
               element={
                 <RequireOwner>
-                  <CompGridPage />
+                  <MasterGridPage />
                 </RequireOwner>
               }
             />

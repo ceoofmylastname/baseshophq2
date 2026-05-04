@@ -26,7 +26,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
   { to: "/agents",    label: "Agents",    icon: Users },
-  { to: "/comp-grid", label: "Comp Grid", icon: BarChart3, ownerOnly: true },
+  { to: "/master-grid", label: "Master Grid", icon: BarChart3, ownerOnly: true },
   { to: "/ingest",    label: "Ingest",    icon: Upload, ownerOnly: true },
   { to: "/policies",  label: "Policies",  icon: FileText },
   { to: "/settings",  label: "Settings",  icon: Settings },
