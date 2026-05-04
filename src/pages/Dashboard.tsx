@@ -1,10 +1,28 @@
 /**
- * Phase 10A: operator Dashboard.
+ * Operator Dashboard. Phase 10A initial + Phase 10A.1 leaderboards/feed/chart.
  *
- * Replaces the Phase 5 placeholder. Top-level filter state (time range +
- * carrier) flows down to every widget. dashboard_metrics RPC is the single
- * round trip per filter change; realtime hooks (policies, policy_commissions,
- * announcements, ingest_runs, tenant_setup_state) refresh widgets in place.
+ * Realtime cascade dependencies (Build Rule, locked starting 10A.1)
+ * ----------------------------------------------------------------------------
+ * This page subscribes to the following source tables via postgres_changes
+ * filtered by tenant_id. Any column or status change is reflected without
+ * manual refresh.
+ *
+ *   policies            - metric cards, commission trend, leaderboards,
+ *                          activity feed (via the policy_created and
+ *                          policy_status_changed AFTER triggers)
+ *   policy_commissions  - metric cards, commission trend
+ *   announcements       - announcements list
+ *   ingest_runs         - last import summary
+ *   tenant_setup_state  - setup wizard banner
+ *   activity_events     - recent activity feed (debounced 400ms; bulk Set
+ *                          Column flows can fire 10+ events in seconds)
+ *   agents              - top recruiters leaderboard, team_size metric
+ *
+ * Convention: when adding a new aggregate widget that reads cross-cutting
+ * data, declare its table dependencies in this comment block AND ensure the
+ * hook subscribes to those tables. activity_events is the union "something
+ * happened" channel; per-table subscriptions stay for high-fidelity per-cell
+ * updates. See [[realtime-updates-and-hierarchy-cascade]] in the wiki.
  */
 
 import { useMemo, useState } from "react";
@@ -20,6 +38,10 @@ import { QuickActionButtons } from "@/components/dashboard/QuickActionButtons";
 import { LastImportSummary } from "@/components/dashboard/LastImportSummary";
 import { AnnualGoalProgress } from "@/components/dashboard/AnnualGoalProgress";
 import { AnnouncementsList } from "@/components/dashboard/AnnouncementsList";
+import { CommissionTrendChart } from "@/components/dashboard/CommissionTrendChart";
+import { TopProducersMini } from "@/components/dashboard/TopProducersMini";
+import { LeaderboardsSection } from "@/components/dashboard/LeaderboardsSection";
+import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
 
 export function DashboardPage() {
   const { currentAgent } = useAuth();
@@ -68,6 +90,27 @@ export function DashboardPage() {
         <LastImportSummary />
         <AnnualGoalProgress progressAmount={goalProgressAmount} />
       </div>
+
+      <CommissionTrendChart
+        startDate={rangeState.range.start}
+        endDate={rangeState.range.end}
+        carrierId={carrierId}
+      />
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <TopProducersMini
+          startDate={rangeState.range.start}
+          endDate={rangeState.range.end}
+          carrierId={carrierId}
+        />
+        <RecentActivityFeed />
+      </div>
+
+      <LeaderboardsSection
+        startDate={rangeState.range.start}
+        endDate={rangeState.range.end}
+        carrierId={carrierId}
+      />
 
       <AnnouncementsList />
     </div>
