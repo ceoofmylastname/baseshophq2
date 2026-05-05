@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, BarChart3, FileText, Settings, Upload, Wallet, TrendingUp, LineChart, Trophy, UserCheck } from "lucide-react";
+import { Home, Users, BarChart3, FileText, Settings, Upload, Wallet, TrendingUp, LineChart, Trophy, UserCheck, FileSignature } from "lucide-react";
 import { useIsOwner } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
   { to: "/agents",    label: "Agents",    icon: Users },
+  { to: "/contracts", label: "Contracts", icon: FileSignature },
   { to: "/master-grid", label: "Master Grid", icon: BarChart3, ownerOnly: true },
   { to: "/ingest",    label: "Ingest",    icon: Upload, ownerOnly: true },
   { to: "/book-of-business", label: "Book of Business", icon: FileText },

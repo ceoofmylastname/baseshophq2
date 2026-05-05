@@ -17,6 +17,7 @@ import { PolicyDetailPage } from "@/pages/PolicyDetail";
 import { ProductionPage } from "@/pages/Production";
 import { ScoreboardPage } from "@/pages/Scoreboard";
 import { ActiveAgentsPage } from "@/pages/ActiveAgents";
+import { ContractsPage } from "@/pages/Contracts";
 import { SettingsPage } from "@/pages/Settings";
 
 export default function App() {
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="/team-production" element={<ProductionPage teamView />} />
             <Route path="/scoreboard"      element={<ScoreboardPage />} />
             <Route path="/active-agents"   element={<ActiveAgentsPage />} />
+            <Route path="/contracts"       element={<ContractsPage />} />
             <Route path="/my-rates"  element={<MyRatesPage />} />
             <Route path="/settings"  element={<SettingsPage />} />
           </Route>
