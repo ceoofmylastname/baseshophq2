@@ -14,7 +14,7 @@ import { MyRatesPage } from "@/pages/MyRates";
 import { MasterGridPage } from "@/pages/MasterGrid";
 import { BookOfBusinessPage } from "@/pages/BookOfBusiness";
 import { PolicyDetailPage } from "@/pages/PolicyDetail";
-import { TeamProductionPage } from "@/pages/TeamProduction";
+import { ProductionPage } from "@/pages/Production";
 import { ScoreboardPage } from "@/pages/Scoreboard";
 import { ActiveAgentsPage } from "@/pages/ActiveAgents";
 import { SettingsPage } from "@/pages/Settings";
@@ -66,7 +66,8 @@ export default function App() {
             <Route path="/policies"        element={<Navigate to="/book-of-business" replace />} />
             <Route path="/book-of-business" element={<BookOfBusinessPage />} />
             <Route path="/policy/:policyId" element={<PolicyDetailPage />} />
-            <Route path="/team-production" element={<TeamProductionPage />} />
+            <Route path="/production"      element={<ProductionPage />} />
+            <Route path="/team-production" element={<ProductionPage teamView />} />
             <Route path="/scoreboard"      element={<ScoreboardPage />} />
             <Route path="/active-agents"   element={<ActiveAgentsPage />} />
             <Route path="/my-rates"  element={<MyRatesPage />} />
