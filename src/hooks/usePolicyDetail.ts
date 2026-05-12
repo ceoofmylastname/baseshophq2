@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 import type { PolicyStatus } from "@/lib/policy-bucket";
 
@@ -120,7 +121,7 @@ export function usePolicyDetail(policyId: string | undefined) {
   useEffect(() => {
     if (!tenant?.id || !policyId) return;
     const channel = supabase
-      .channel(`policy-detail-${policyId}`)
+      .channel(realtimeTopic(`policy-detail-${policyId}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "policies", filter: `id=eq.${policyId}` },
         () => { void refresh(); })

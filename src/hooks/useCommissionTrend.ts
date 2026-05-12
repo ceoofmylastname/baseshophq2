@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export type TrendPoint = { month: string; booked: number; realized: number };
@@ -27,7 +28,7 @@ export function useCommissionTrend(args: {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`commission-trend-${tenant.id}`)
+      .channel(realtimeTopic(`commission-trend-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "policy_commissions", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

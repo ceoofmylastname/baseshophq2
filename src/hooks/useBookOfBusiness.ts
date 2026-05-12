@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 import { statusesInBucket, type PolicyBucket, type PolicyStatus } from "@/lib/policy-bucket";
 
@@ -134,7 +135,7 @@ export function useBookOfBusiness(args: {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`book-${tenant.id}`)
+      .channel(realtimeTopic(`book-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "policies", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

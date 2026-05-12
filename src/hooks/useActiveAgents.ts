@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export type ActiveAgentRow = {
@@ -84,7 +85,7 @@ export function useActiveAgents(args: { days: number }) {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`active-agents-${tenant.id}`)
+      .channel(realtimeTopic(`active-agents-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "policies", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

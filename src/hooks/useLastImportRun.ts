@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export type IngestRun = {
@@ -37,7 +38,7 @@ export function useLastImportRun() {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`ingest-runs-${tenant.id}`)
+      .channel(realtimeTopic(`ingest-runs-${tenant.id}`))
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "ingest_runs", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

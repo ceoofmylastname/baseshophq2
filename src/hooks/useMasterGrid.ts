@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 /**
@@ -102,7 +103,7 @@ export function useMasterGrid(productType: "life" | "annuity") {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`master-grid-${tenant.id}-${productType}`)
+      .channel(realtimeTopic(`master-grid-${tenant.id}-${productType}`))
       .on(
         "postgres_changes",
         {

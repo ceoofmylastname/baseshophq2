@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export type ContractStatus = "Active" | "Pending" | "Terminated";
@@ -152,7 +153,7 @@ export function useContracts(filters: ContractFilters) {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`contracts-${tenant.id}`)
+      .channel(realtimeTopic(`contracts-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "agent_contracts", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

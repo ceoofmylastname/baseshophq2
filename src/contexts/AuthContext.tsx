@@ -65,10 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const loadAgentAndTenant = useCallback(async (userId: string) => {
+    // Disambiguate the embedded resource: agents has two FK paths to tenants
+    // (agents.tenant_id → tenants.id AND tenants.owner_agent_id → agents.id).
+    // PostgREST raises PGRST201 without an explicit FK hint, which silently
+    // null-resolves currentAgent and breaks owner-gated UI.
     const { data, error: err } = await supabase
       .from("agents")
       .select(
-        "id, tenant_id, email, first_name, last_name, is_owner, status, tenants(id, name, slug, status)",
+        "id, tenant_id, email, first_name, last_name, is_owner, status, tenant:tenants!agents_tenant_id_fkey(id, name, slug, status)",
       )
       .eq("id", userId)
       .maybeSingle();
@@ -87,10 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setError(null);
-    const { tenants, ...agent } = data as Agent & { tenants: Tenant | Tenant[] | null };
+    const { tenant: embeddedTenant, ...agent } = data as Agent & { tenant: Tenant | Tenant[] | null };
     setCurrentAgent(agent);
     // PostgREST returns the joined row as either an object or a single-item array.
-    const tenantRow = Array.isArray(tenants) ? tenants[0] ?? null : tenants;
+    const tenantRow = Array.isArray(embeddedTenant) ? embeddedTenant[0] ?? null : embeddedTenant;
     setTenant(tenantRow);
   }, []);
 

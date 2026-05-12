@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export type MostImprovedRow = {
@@ -49,7 +50,7 @@ export function useLeaderboardMostImproved(args: {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`most-improved-${tenant.id}`)
+      .channel(realtimeTopic(`most-improved-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "policies", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

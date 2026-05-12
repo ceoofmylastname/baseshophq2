@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export type Announcement = {
@@ -36,7 +37,7 @@ export function useAnnouncements() {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`announcements-${tenant.id}`)
+      .channel(realtimeTopic(`announcements-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "announcements", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

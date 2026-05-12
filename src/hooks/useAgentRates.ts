@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 
 export type AgentRateRow = {
   id: string;
@@ -65,7 +66,7 @@ export function useAgentRates(agentId: string | undefined) {
   useEffect(() => {
     if (!agentId) return;
     const channel = supabase
-      .channel(`agent-rates-${agentId}`)
+      .channel(realtimeTopic(`agent-rates-${agentId}`))
       .on(
         "postgres_changes",
         {

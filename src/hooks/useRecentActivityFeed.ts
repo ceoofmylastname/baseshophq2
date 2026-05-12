@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export type ActivityEvent = {
@@ -81,7 +82,7 @@ export function useRecentActivityFeed() {
     }
 
     const channel = supabase
-      .channel(`activity-feed-${tenant.id}`)
+      .channel(realtimeTopic(`activity-feed-${tenant.id}`))
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "activity_events", filter: `tenant_id=eq.${tenant.id}` },
         () => scheduleRefresh())

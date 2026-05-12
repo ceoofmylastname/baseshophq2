@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 import type { ProductionBasis } from "./useProductionMetrics";
 
@@ -63,7 +64,7 @@ export function useProductionPremiumTrend(args: {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`production-trend-${tenant.id}-${args.mode}`)
+      .channel(realtimeTopic(`production-trend-${tenant.id}-${args.mode}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "policies", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

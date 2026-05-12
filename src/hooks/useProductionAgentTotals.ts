@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 import type { ProductionBasis } from "./useProductionMetrics";
 
@@ -63,7 +64,7 @@ export function useProductionAgentTotals(args: {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`production-totals-${tenant.id}`)
+      .channel(realtimeTopic(`production-totals-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "policies", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

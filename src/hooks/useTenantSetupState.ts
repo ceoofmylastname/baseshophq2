@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export const SETUP_STEPS = [
@@ -35,7 +36,7 @@ export function useTenantSetupState() {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`setup-state-${tenant.id}`)
+      .channel(realtimeTopic(`setup-state-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "tenant_setup_state", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })

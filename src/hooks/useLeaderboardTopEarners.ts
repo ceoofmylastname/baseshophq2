@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { realtimeTopic } from "@/lib/realtime-topic";
 import { useTenant } from "@/contexts/AuthContext";
 
 export type EarnerRow = {
@@ -34,7 +35,7 @@ export function useLeaderboardTopEarners(args: {
   useEffect(() => {
     if (!tenant?.id) return;
     const channel = supabase
-      .channel(`top-earners-${tenant.id}`)
+      .channel(realtimeTopic(`top-earners-${tenant.id}`))
       .on("postgres_changes",
         { event: "*", schema: "public", table: "policy_commissions", filter: `tenant_id=eq.${tenant.id}` },
         () => { void refresh(); })
