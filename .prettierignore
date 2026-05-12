@@ -1,0 +1,11 @@
+node_modules
+dist
+bun.lock
+package-lock.json
+supabase/migrations
+supabase/functions
+docs/audit
+*.code-workspace
+audit-report.md
+security-hygiene-report.md
+wiki-reconciliation-v2-map.md

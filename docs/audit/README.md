@@ -33,3 +33,6 @@ The actual fix this folder documents lives at:
 
 The wiki entries describing the pass live at:
 `Wiki/log.md` (entries dated 2026-05-11 and 2026-05-12)
+
+<!-- TODO: normalize Wiki/wiki casing across docs to match filesystem (lowercase wiki/). Cross-doc cleanup; deferred from the CI + seed checkpoint to avoid scope creep. -->
+
