@@ -648,27 +648,17 @@ ON CONFLICT (id) DO NOTHING;
 
 
 -- ---------------------------------------------------------------------------
--- 16. Force commission engine on all Issued + Issue Paid policies.
---     The policies_recalc_on_issued trigger only fires on INSERT with
---     status='Issued' or UPDATE → 'Issued'. Policies inserted directly as
---     'Issue Paid' (terminal status from the realized bucket) bypass it.
---     Run recalculate_policy_payouts() explicitly so the leaderboard
---     top-earners RPC and the commission-trend chart show full data.
+-- 16. (Removed) Post-insert recalc loop.
+--     Previously this section ran recalculate_policy_payouts on every
+--     Issued + Issue Paid policy because the old trigger only fired on
+--     INSERT-as-Issued / UPDATE-to-Issued. As of migration
+--     20260512130000_fix_commission_trigger_to_fire_on_all_status_changes.sql
+--     the trigger fires on every status change and the engine owns the
+--     commissionable gate. No explicit recalc needed — if this seed ever
+--     starts producing significantly fewer commission rows than the
+--     Checkpoint-C baseline (~122 across 44+ policies), the trigger has
+--     regressed and migration-check will surface it.
 -- ---------------------------------------------------------------------------
-DO $seed_recalc$
-DECLARE
-    v_policy_id UUID;
-BEGIN
-    FOR v_policy_id IN
-        SELECT id FROM public.policies
-        WHERE tenant_id = '11111111-1111-1111-1111-111111111111'
-          AND status IN ('Issued', 'Issue Paid')
-          AND agent_id IS NOT NULL
-    LOOP
-        PERFORM public.recalculate_policy_payouts(v_policy_id);
-    END LOOP;
-END
-$seed_recalc$;
 
 
 COMMIT;
