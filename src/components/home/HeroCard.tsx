@@ -21,13 +21,17 @@ function CriterionBar({ c }: { c: CriterionProgress }) {
     <div>
       <div className="flex items-baseline justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <span className={c.met ? "font-semibold text-emerald-600" : "font-semibold"}>
+        <span className={c.met ? "font-semibold text-emerald-400" : "font-semibold text-foreground"}>
           {fmt(c.key, c.current)} / {fmt(c.key, c.target)}
         </span>
       </div>
-      <div className="mt-1 h-1.5 rounded-full bg-muted">
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
         <div
-          className={c.met ? "h-1.5 rounded-full bg-emerald-500" : "h-1.5 rounded-full bg-primary"}
+          className={
+            c.met
+              ? "h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_12px_hsl(150_70%_50%/0.5)]"
+              : "h-full rounded-full bg-gradient-to-r from-primary to-amber-300 shadow-[0_0_12px_hsl(38_92%_60%/0.5)]"
+          }
           style={{ width: `${Math.min(100, Math.max(0, c.pct * 100))}%` }}
         />
       </div>
@@ -50,22 +54,34 @@ export function HeroCard() {
   const firstName = currentAgent?.first_name ?? currentAgent?.email ?? "there";
 
   return (
-    <div className="rounded-lg border bg-card p-5">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <div className="relative overflow-hidden rounded-2xl glass p-6">
+      {/* Kinetic gradient wash — sits behind content, doesn't block clicks. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 gradient-rim opacity-90" />
+
+      <div className="relative flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Welcome back</p>
-          <h1 className="text-2xl font-semibold">{firstName}</h1>
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Welcome back
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-shadow-hero">
+            {firstName}
+          </h1>
         </div>
         {data?.current_position && (
           <div className="text-right text-sm">
-            <p className="text-muted-foreground">Position</p>
-            <p className="font-medium">{data.current_position.name} ({data.current_position.code})</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              Position
+            </p>
+            <p className="mt-1 font-semibold text-shadow-soft">
+              {data.current_position.name}
+              <span className="ml-1 text-muted-foreground">({data.current_position.code})</span>
+            </p>
           </div>
         )}
       </div>
 
       {/* Promotion progress */}
-      <div className="mt-4">
+      <div className="relative mt-5">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading promotion progress…</p>
         ) : !data?.next_position || data.criteria_progress.length === 0 ? (
@@ -77,17 +93,17 @@ export function HeroCard() {
         ) : (
           <div className="space-y-3">
             <div className="flex items-baseline justify-between">
-              <p className="text-sm font-medium">
-                Next: {data.next_position.name}{" "}
-                <span className="text-muted-foreground">({data.next_position.code})</span>
+              <p className="text-sm font-semibold">
+                Next: <span className="text-shadow-soft">{data.next_position.name}</span>{" "}
+                <span className="font-normal text-muted-foreground">({data.next_position.code})</span>
               </p>
               {data.all_met && (
-                <span className="text-xs font-semibold text-emerald-600">
-                  All criteria met — promotion ready
+                <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                  Promotion ready
                 </span>
               )}
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {data.criteria_progress.map(c => <CriterionBar key={c.key} c={c} />)}
             </div>
           </div>
@@ -96,9 +112,11 @@ export function HeroCard() {
 
       {/* Annual goal */}
       {goal != null && goal > 0 && (
-        <div className="mt-5 border-t pt-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Annual goal</p>
-          <p className="mt-1 text-sm font-medium">
+        <div className="relative mt-5 border-t border-white/[0.06] pt-4">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Annual goal
+          </p>
+          <p className="mt-1 text-sm font-semibold tracking-tight">
             {goal.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
           </p>
         </div>

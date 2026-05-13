@@ -45,25 +45,42 @@ export function Sidebar() {
 
   return (
     <nav className="flex h-full flex-col">
-      <div className="border-b p-4">
-        <div className="text-base font-semibold">Baseshop HQ</div>
+      <div className="border-b border-white/[0.06] p-4">
+        <div className="text-base font-semibold tracking-tight text-shadow-soft">
+          Baseshop <span className="text-primary">HQ</span>
+        </div>
       </div>
-      <ul className="flex-1 space-y-1 p-3">
+      <ul className="flex-1 space-y-0.5 p-3">
         {items.map((item) => (
           <li key={item.to}>
             <NavLink
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                  "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
                   isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                    ? "bg-white/[0.06] text-foreground"
+                    : "text-muted-foreground hover:bg-white/[0.03] hover:text-foreground",
                 )
               }
             >
-              <item.icon className="h-4 w-4" />
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <span
+                      aria-hidden
+                      className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-primary shadow-[0_0_8px_hsl(38_92%_60%/0.6)]"
+                    />
+                  )}
+                  <item.icon
+                    className={cn(
+                      "h-4 w-4 transition-colors",
+                      isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+                    )}
+                  />
+                  {item.label}
+                </>
+              )}
             </NavLink>
           </li>
         ))}

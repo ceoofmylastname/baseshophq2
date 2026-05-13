@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+ * Phase 11: dark-first luxury aesthetic.
+ *
+ * Brand-locked tokens per project CLAUDE.md:
+ *   - Background: #0B0B0C neutral black (NOT navy)
+ *   - Glassmorphism: translucent surfaces + backdrop-blur
+ *   - Kinetic animated gradients for showcase moments
+ *   - Text-shadows for legibility over complex backgrounds
+ *
+ * The light palette is retained but the app boots with class="dark" on <html>,
+ * so light is reachable only by explicitly removing the class.
+ * ========================================================================== */
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -23,33 +36,131 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Pure neutral palette. #0B0B0C is HSL 0 0% 4.7%. */
+    --background: 0 0% 4.7%;
+    --foreground: 0 0% 96%;
+
+    /* Card is near-white so bg-card/[0.04] applied in the Card primitive
+       produces a clean glass film over the black backdrop. */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 96%;
+
+    /* Premium warm accent for CTAs, active sidebar rim, focus ring. */
+    --primary: 38 92% 60%;
+    --primary-foreground: 0 0% 4.7%;
+
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 96%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 38 92% 60%;
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  html, body { @apply bg-background text-foreground; }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Ambient wash: subtle warm/cool radial gradients over the neutral black
+     base. Fixed attachment so scrolling doesn't shift the wash. */
+  .dark body {
+    background:
+      radial-gradient(at 15% 0%, hsl(38 92% 60% / 0.05) 0px, transparent 45%),
+      radial-gradient(at 85% 8%, hsl(280 60% 50% / 0.04) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, hsl(200 80% 50% / 0.03) 0px, transparent 55%),
+      hsl(0 0% 4.7%);
+    background-attachment: fixed;
+  }
+
+  /* Global glass cascade: every existing `bg-card` div picks up the glass
+     treatment automatically. Specificity (.dark .bg-card) beats plain
+     .bg-card so the Tailwind utility is overridden inside dark mode only.
+     The light palette is untouched. */
+  .dark .bg-card {
+    background-color: hsl(0 0% 100% / 0.04);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .dark .bg-popover {
+    background-color: hsl(0 0% 8% / 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+@layer utilities {
+  /* Glass: translucent surface with blur + soft inner highlight. */
+  .glass {
+    background-color: hsl(0 0% 100% / 0.04);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.05),
+      0 1px 2px 0 hsl(0 0% 0% / 0.4);
+  }
+
+  /* Stronger glass for chrome (sidebar, topbar, modals). */
+  .glass-strong {
+    background-color: hsl(0 0% 100% / 0.06);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid hsl(0 0% 100% / 0.10);
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.06),
+      0 8px 24px -8px hsl(0 0% 0% / 0.6);
+  }
+
+  .text-shadow-soft {
+    text-shadow: 0 1px 2px hsl(0 0% 0% / 0.6);
+  }
+  .text-shadow-hero {
+    text-shadow: 0 2px 8px hsl(0 0% 0% / 0.7), 0 1px 2px hsl(0 0% 0% / 0.4);
+  }
+
+  /* Animated kinetic gradient — used as a backdrop layer behind hero pieces. */
+  .gradient-rim {
+    background:
+      radial-gradient(at 0% 0%, hsl(38 92% 60% / 0.18) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsl(280 80% 60% / 0.14) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, hsl(200 90% 55% / 0.12) 0px, transparent 60%);
+    background-size: 200% 200%;
+    animation: gradient-pan 18s ease-in-out infinite;
+  }
+
+  /* Background-wide ambient wash for the auth pages and shell. */
+  .ambient-wash {
+    background:
+      radial-gradient(at 15% 0%, hsl(38 92% 60% / 0.08) 0px, transparent 45%),
+      radial-gradient(at 85% 5%, hsl(280 60% 50% / 0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, hsl(200 80% 50% / 0.05) 0px, transparent 55%),
+      hsl(0 0% 4.7%);
+  }
+}
+
+@layer base {
+  @keyframes gradient-pan {
+    0%   { background-position:   0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position:   0% 50%; }
+  }
 }

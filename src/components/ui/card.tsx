@@ -1,9 +1,22 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Phase 11: Card defaults to the glass aesthetic. Translucent white film,
+ * backdrop blur, subtle inner highlight, soft drop. Every downstream usage
+ * picks this up without any per-call work; consumers who want a flat surface
+ * pass their own bg-* class to override.
+ */
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+    <div
+      ref={ref}
+      className={cn(
+        "rounded-xl text-card-foreground glass",
+        className,
+      )}
+      {...props}
+    />
   ),
 );
 Card.displayName = "Card";
