@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <!-- Background: deep neutral black with subtle radial washes -->
+    <radialGradient id="washGold" cx="20%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="hsl(38 92% 60% / 0.18)"/>
+      <stop offset="100%" stop-color="hsl(38 92% 60% / 0)"/>
+    </radialGradient>
+    <radialGradient id="washViolet" cx="85%" cy="75%" r="50%">
+      <stop offset="0%" stop-color="hsl(280 60% 50% / 0.12)"/>
+      <stop offset="100%" stop-color="hsl(280 60% 50% / 0)"/>
+    </radialGradient>
+    <radialGradient id="washCyan" cx="60%" cy="15%" r="40%">
+      <stop offset="0%" stop-color="hsl(200 80% 50% / 0.08)"/>
+      <stop offset="100%" stop-color="hsl(200 80% 50% / 0)"/>
+    </radialGradient>
+
+    <!-- Gold gradient for accents -->
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="hsl(48 100% 80%)"/>
+      <stop offset="55%"  stop-color="hsl(38 92% 60%)"/>
+      <stop offset="100%" stop-color="hsl(30 88% 50%)"/>
+    </linearGradient>
+
+    <linearGradient id="goldHorizontal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"  stop-color="hsl(30 88% 50%)"/>
+      <stop offset="50%" stop-color="hsl(48 100% 78%)"/>
+      <stop offset="100%" stop-color="hsl(30 88% 50%)"/>
+    </linearGradient>
+
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+
+  <!-- Background fills -->
+  <rect width="1200" height="630" fill="#0B0B0C"/>
+  <rect width="1200" height="630" fill="url(#washGold)"/>
+  <rect width="1200" height="630" fill="url(#washViolet)"/>
+  <rect width="1200" height="630" fill="url(#washCyan)"/>
+
+  <!-- Subtle grid texture for depth -->
+  <g opacity="0.04" stroke="#FFFFFF" stroke-width="1">
+    <line x1="0" y1="80"  x2="1200" y2="80"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="430" x2="1200" y2="430"/>
+    <line x1="0" y1="550" x2="1200" y2="550"/>
+    <line x1="200"  y1="0" x2="200"  y2="630"/>
+    <line x1="600"  y1="0" x2="600"  y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- Top-left badge: BUILT FOR LIFE INSURANCE AGENCIES -->
+  <g transform="translate(80, 80)">
+    <rect x="0" y="0" width="350" height="36" rx="18" fill="hsl(38 92% 60% / 0.10)" stroke="hsl(38 92% 60% / 0.35)" stroke-width="1"/>
+    <circle cx="20" cy="18" r="3" fill="hsl(38 92% 60%)"/>
+    <text x="35" y="23" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="hsl(38 92% 60%)" letter-spacing="2">BUILT FOR LIFE INSURANCE AGENCIES</text>
+  </g>
+
+  <!-- Bottom-right wordmark: Baseshop HQ -->
+  <g transform="translate(80, 540)">
+    <!-- Mini monogram -->
+    <g transform="translate(0, -6)">
+      <path d="M 0 26 L 26 26 L 23 19 L 3 19 Z"  fill="url(#gold)" opacity="0.55"/>
+      <path d="M 4 17 L 22 17 L 20 10 L 6 10 Z"  fill="url(#gold)" opacity="0.82"/>
+      <path d="M 8 8 L 18 8 L 17 -2 L 9 -2 Z"   fill="url(#gold)"/>
+      <circle cx="13" cy="-5" r="2" fill="hsl(48 100% 85%)"/>
+    </g>
+    <text x="44" y="20" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="600" fill="#F5F5F5" letter-spacing="-0.5">Baseshop</text>
+    <text x="155" y="20" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="url(#gold)" letter-spacing="-0.5">HQ</text>
+  </g>
+
+  <!-- Bottom-right: URL -->
+  <text x="1120" y="560" text-anchor="end" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="14" fill="hsl(0 0% 100% / 0.5)" letter-spacing="0.5">baseshophq.com</text>
+
+  <!-- Center / left-leaning: BIG HEADLINE -->
+  <g transform="translate(80, 200)">
+    <!-- "Run your agency" -->
+    <text x="0" y="60" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="78" font-weight="600" fill="#F5F5F5" letter-spacing="-2">
+      Run your agency
+    </text>
+
+    <!-- "like it's" with gold-shimmer simulation -->
+    <text x="0" y="146" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="78" font-weight="600" fill="#F5F5F5" letter-spacing="-2">
+      like it&#39;s
+    </text>
+
+    <!-- "already won." in gold -->
+    <text x="245" y="146" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="78" font-weight="700" fill="url(#goldHorizontal)" letter-spacing="-2" filter="url(#softGlow)">
+      already won.
+    </text>
+    <text x="245" y="146" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="78" font-weight="700" fill="url(#goldHorizontal)" letter-spacing="-2">
+      already won.
+    </text>
+  </g>
+
+  <!-- Subhead -->
+  <text x="80" y="430" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="24" fill="hsl(0 0% 70%)" letter-spacing="-0.3">
+    Track every policy. Auto-route every carrier CSV.
+  </text>
+  <text x="80" y="466" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="24" fill="hsl(0 0% 70%)" letter-spacing="-0.3">
+    See every agent&#39;s rank in real time.
+  </text>
+
+  <!-- Right-side decoration: large monogram fading into corner -->
+  <g transform="translate(880, 130) scale(2.6)" opacity="0.18">
+    <path d="M 0 100 L 100 100 L 88 76 L 12 76 Z" fill="url(#gold)"/>
+    <path d="M 18 72 L 82 72 L 72 48 L 28 48 Z" fill="url(#gold)"/>
+    <path d="M 33 44 L 67 44 L 63 12 L 37 12 Z" fill="url(#gold)"/>
+    <circle cx="50" cy="6" r="6" fill="hsl(48 100% 85%)"/>
+  </g>
+
+  <!-- Bottom rim of gold gradient line -->
+  <rect x="0" y="624" width="1200" height="6" fill="url(#goldHorizontal)" opacity="0.35"/>
+</svg>
