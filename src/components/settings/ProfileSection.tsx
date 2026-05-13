@@ -92,7 +92,17 @@ export function ProfileSection() {
       const { error: uploadErr } = await supabase.storage
         .from("avatars")
         .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type });
-      if (uploadErr) { setError(uploadErr.message); return; }
+      if (uploadErr) {
+        // Storage RLS rejection comes through as a 400 with a generic
+        // "new row violates row-level security" message. Translate to
+        // something an operator can actually act on.
+        if (/row-level security|new row/i.test(uploadErr.message)) {
+          setError("Storage permission denied. Your account doesn't have write access to the avatars bucket. Reload the page and try again, or contact support.");
+        } else {
+          setError(`Upload failed: ${uploadErr.message}`);
+        }
+        return;
+      }
 
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
       const newUrl = pub.publicUrl;
@@ -103,10 +113,13 @@ export function ProfileSection() {
         .from("agents")
         .update({ avatar_url: newUrl })
         .eq("id", currentAgent.id);
-      if (updateErr) { setError(updateErr.message); return; }
+      if (updateErr) { setError(`Saved photo but couldn't link it: ${updateErr.message}`); return; }
 
       setAvatarUrl(newUrl);
       void refresh();
+    } catch (e) {
+      // Network / fetch failure — surface so the user isn't stuck on "Uploading…"
+      setError(e instanceof Error ? `Upload failed: ${e.message}` : "Upload failed.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -167,6 +180,14 @@ export function ProfileSection() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+        {/* Error banner — appears above the photo block so it's visible
+            without scrolling, useful for surfacing storage/RLS failures. */}
+        {error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/[0.08] px-3 py-2 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
         {/* Photo block */}
         <div className="flex items-start gap-4">
           <AgentAvatar
@@ -293,8 +314,6 @@ export function ProfileSection() {
             {bio.length}/500 characters. Shown on your agent detail panel.
           </p>
         </div>
-
-        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex items-center justify-between pt-1">
           <p className="text-[11px] text-muted-foreground">
