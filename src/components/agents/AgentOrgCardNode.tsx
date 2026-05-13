@@ -124,67 +124,74 @@ export function AgentOrgCardNode({ node, range, onSelect }: Props) {
 
   return (
     <div className="org-chart-node">
-      <div
-        onClick={handleCardClick}
-        className={cn(
-          "org-chart-card relative flex w-[220px] cursor-pointer flex-col overflow-hidden rounded-2xl glass-strong ring-1 transition-all duration-200 hover:ring-2",
-          v.ring,
-          v.glow,
-          node.subtreeHasRisk && "ring-2 ring-orange-400/40",
-        )}
-      >
-        <div className={cn("h-[3px] w-full", v.ribbon)} aria-hidden />
+      {/* Card + floating button live in a relative wrapper. Card has
+          overflow-hidden so the tier ribbon clips to the rounded corners.
+          The expand button sits OUTSIDE the overflow-hidden so its bottom
+          half (which floats below the card edge) isn't clipped. z-20
+          puts it above the connector line that drops from the card. */}
+      <div className="relative">
+        <div
+          onClick={handleCardClick}
+          className={cn(
+            "org-chart-card relative flex w-[220px] cursor-pointer flex-col overflow-hidden rounded-2xl glass-strong ring-1 transition-all duration-200 hover:ring-2",
+            v.ring,
+            v.glow,
+            node.subtreeHasRisk && "ring-2 ring-orange-400/40",
+          )}
+        >
+          <div className={cn("h-[3px] w-full", v.ribbon)} aria-hidden />
 
-        <div className="flex flex-col items-center px-4 pb-3 pt-4">
-          <div
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-lg",
-              v.avatarBg,
-              v.avatarText,
-            )}
-          >
-            {initials}
-          </div>
-
-          <div className="mt-2.5 flex items-center justify-center gap-1.5">
-            <Link
-              to={`/agents/${node.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="truncate text-center text-sm font-semibold tracking-tight hover:underline text-shadow-soft max-w-[180px]"
+          <div className="flex flex-col items-center px-4 pb-3 pt-4">
+            <div
+              className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-lg",
+                v.avatarBg,
+                v.avatarText,
+              )}
             >
-              {displayName}
-            </Link>
-            {node.is_owner && (
-              <span className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary">
-                Owner
+              {initials}
+            </div>
+
+            <div className="mt-2.5 flex items-center justify-center gap-1.5">
+              <Link
+                to={`/agents/${node.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="truncate text-center text-sm font-semibold tracking-tight hover:underline text-shadow-soft max-w-[180px]"
+              >
+                {displayName}
+              </Link>
+              {node.is_owner && (
+                <span className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary">
+                  Owner
+                </span>
+              )}
+            </div>
+
+            <p className="mt-0.5 truncate text-center text-[11px] text-muted-foreground max-w-[200px]">
+              {position}
+            </p>
+
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider", v.iconClass)}>
+                <v.Icon className="h-3 w-3" />
+                {v.label}
               </span>
-            )}
-          </div>
+              {node.subtreeHasRisk && (
+                <span className="inline-flex items-center gap-0.5 rounded-md border border-orange-400/30 bg-orange-400/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-orange-300">
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  Risk
+                </span>
+              )}
+            </div>
 
-          <p className="mt-0.5 truncate text-center text-[11px] text-muted-foreground max-w-[200px]">
-            {position}
-          </p>
-
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider", v.iconClass)}>
-              <v.Icon className="h-3 w-3" />
-              {v.label}
-            </span>
-            {node.subtreeHasRisk && (
-              <span className="inline-flex items-center gap-0.5 rounded-md border border-orange-400/30 bg-orange-400/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-orange-300">
-                <AlertTriangle className="h-2.5 w-2.5" />
-                Risk
+            <div className="mt-2 flex w-full items-center justify-between border-t border-white/[0.06] pt-2 text-[10px] tabular-nums text-muted-foreground">
+              <span title={`Policies written ${windowLabel}`}>
+                <span className="font-semibold text-foreground/80">{node.in_window_count}</span> {windowLabel}
               </span>
-            )}
-          </div>
-
-          <div className="mt-2 flex w-full items-center justify-between border-t border-white/[0.06] pt-2 text-[10px] tabular-nums text-muted-foreground">
-            <span title={`Policies written ${windowLabel}`}>
-              <span className="font-semibold text-foreground/80">{node.in_window_count}</span> {windowLabel}
-            </span>
-            <span title="Total policies ever written">
-              <span className="font-semibold text-foreground/80">{node.lifetime_count}</span> lifetime
-            </span>
+              <span title="Total policies ever written">
+                <span className="font-semibold text-foreground/80">{node.lifetime_count}</span> lifetime
+              </span>
+            </div>
           </div>
         </div>
 
@@ -193,7 +200,7 @@ export function AgentOrgCardNode({ node, range, onSelect }: Props) {
             type="button"
             onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }}
             className={cn(
-              "absolute -bottom-3 left-1/2 z-10 flex h-6 -translate-x-1/2 items-center gap-1 rounded-full border border-white/10 bg-popover/90 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-xl transition-all hover:bg-white/[0.08] hover:text-foreground",
+              "absolute -bottom-3 left-1/2 z-20 flex h-6 -translate-x-1/2 items-center gap-1 rounded-full border border-white/10 bg-popover/95 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shadow-md backdrop-blur-xl transition-all hover:bg-white/[0.10] hover:text-foreground",
               expanded && "opacity-80",
             )}
             aria-label={expanded ? "Collapse downline" : `Expand ${node.children.length} downline`}
