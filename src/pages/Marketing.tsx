@@ -5,7 +5,7 @@ import {
   ArrowRight, CheckCircle2, Zap,
 } from "lucide-react";
 import { BaseshopLogo } from "@/components/marketing/BaseshopLogo";
-import { ScrollHero } from "@/components/marketing/ScrollHero";
+import { VideoShowcase } from "@/components/marketing/VideoShowcase";
 import { DemoBookingModal } from "@/components/marketing/DemoBookingModal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -175,13 +175,26 @@ export function MarketingPage() {
         </div>
       </nav>
 
-      {/* Cinematic scroll hero */}
-      <ScrollHero>
-        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-          <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+      {/* Hero — text only, centered, ~100vh */}
+      <section className="relative flex min-h-screen items-center justify-center px-6 pt-32 pb-12">
+        {/* Ambient gradient backdrop */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(at 50% 30%, hsl(38 92% 60% / 0.10) 0px, transparent 50%), " +
+              "radial-gradient(at 20% 70%, hsl(280 60% 50% / 0.06) 0px, transparent 50%), " +
+              "radial-gradient(at 80% 80%, hsl(200 80% 50% / 0.05) 0px, transparent 50%)",
+          }}
+        />
+
+        <div className="relative max-w-4xl text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
             Built for life insurance agencies
           </span>
-          <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-shadow-hero sm:text-6xl md:text-7xl">
+          <h1 className="mt-6 text-5xl font-semibold tracking-tight text-shadow-hero sm:text-6xl md:text-7xl">
             Run your agency
             <br />
             like it&apos;s {" "}
@@ -189,11 +202,11 @@ export function MarketingPage() {
               already won.
             </span>
           </h1>
-          <p className="mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
+          <p className="mx-auto mt-7 max-w-2xl text-base text-muted-foreground sm:text-lg">
             Track every policy. Auto-route every carrier CSV. See every agent&apos;s rank in real time.
             One platform for small shops and 500-agent operations alike.
           </p>
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <Button
               size="lg"
               onClick={() => setDemoOpen(true)}
@@ -202,17 +215,19 @@ export function MarketingPage() {
               Book a private demo <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
             <a
-              href="#features"
+              href="#showcase"
               className="rounded-full border border-white/10 bg-white/[0.02] px-5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
             >
-              See what it does
+              See it in action
             </a>
           </div>
-          <p className="mt-12 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
-            Scroll
-          </p>
         </div>
-      </ScrollHero>
+      </section>
+
+      {/* Video showcase — contained, framed, sits cleanly below the hero text */}
+      <section id="showcase" className="relative pb-24">
+        <VideoShowcase />
+      </section>
 
       {/* Intro band — positioning + 3 trust pillars */}
       <section className="relative border-t border-white/[0.04] bg-background py-24">
