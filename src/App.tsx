@@ -2,7 +2,9 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { RequireOwner } from "@/components/auth/RequireOwner";
+import { PublicOrRedirect } from "@/components/auth/PublicOrRedirect";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { MarketingPage } from "@/pages/Marketing";
 import { LoginPage } from "@/pages/Login";
 import { SignupPage } from "@/pages/Signup";
 import { DashboardPage } from "@/pages/Dashboard";
@@ -26,6 +28,16 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public marketing homepage. Logged-in users redirected to /home. */}
+          <Route
+            path="/"
+            element={
+              <PublicOrRedirect>
+                <MarketingPage />
+              </PublicOrRedirect>
+            }
+          />
+
           <Route path="/login"  element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
 
@@ -36,7 +48,6 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route path="/"          element={<Navigate to="/home" replace />} />
             <Route path="/home"      element={<HomePage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/agents"           element={<AgentsPage />} />
