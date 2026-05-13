@@ -10,6 +10,7 @@ export type DashboardMetrics = {
   at_risk_premium: number;
   booked_policies: number;
   team_size: number;
+  active_writers: number;
   booked_commission: number;
   realized_commission: number;
   meta: { is_owner_view: boolean; start_date: string; end_date: string; carrier_id: string | null };
