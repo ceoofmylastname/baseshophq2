@@ -109,11 +109,21 @@ export function ProfileSection() {
 
       // Persist the URL on the agents row immediately so the rest of the
       // app picks it up on the next refresh (org chart, topbar, etc).
-      const { error: updateErr } = await supabase
+      //
+      // .select() forces the response to return the affected rows. If
+      // RLS blocks the update, PostgREST returns success with an empty
+      // array (NOT an error) — we detect that here so we don't sit on a
+      // silent "looked like it worked" state.
+      const { data: rows, error: updateErr } = await supabase
         .from("agents")
         .update({ avatar_url: newUrl })
-        .eq("id", currentAgent.id);
+        .eq("id", currentAgent.id)
+        .select("id");
       if (updateErr) { setError(`Saved photo but couldn't link it: ${updateErr.message}`); return; }
+      if (!rows || rows.length === 0) {
+        setError("Photo uploaded but your profile wasn't linked to it. Your account doesn't have permission to update its own row — contact your agency owner.");
+        return;
+      }
 
       setAvatarUrl(newUrl);
       void refresh();
@@ -131,11 +141,16 @@ export function ProfileSection() {
     setError(null);
     setUploading(true);
     try {
-      const { error: updateErr } = await supabase
+      const { data: rows, error: updateErr } = await supabase
         .from("agents")
         .update({ avatar_url: null })
-        .eq("id", currentAgent.id);
+        .eq("id", currentAgent.id)
+        .select("id");
       if (updateErr) { setError(updateErr.message); return; }
+      if (!rows || rows.length === 0) {
+        setError("Couldn't remove the photo — your account doesn't have permission to update its own row.");
+        return;
+      }
       setAvatarUrl(null);
       void refresh();
     } finally {
@@ -151,7 +166,7 @@ export function ProfileSection() {
       return;
     }
     setSubmitting(true);
-    const { error: err } = await supabase
+    const { data: rows, error: err } = await supabase
       .from("agents")
       .update({
         first_name: firstName.trim() || null,
@@ -160,9 +175,14 @@ export function ProfileSection() {
         title:      title.trim()     || null,
         bio:        bio.trim()       || null,
       })
-      .eq("id", currentAgent.id);
+      .eq("id", currentAgent.id)
+      .select("id");
     setSubmitting(false);
     if (err) { setError(err.message); return; }
+    if (!rows || rows.length === 0) {
+      setError("Profile didn't save — your account doesn't have permission to update its own row.");
+      return;
+    }
     setSavedFlash(true);
     void refresh();
     setTimeout(() => setSavedFlash(false), 2200);
