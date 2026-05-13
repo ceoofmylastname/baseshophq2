@@ -18,7 +18,7 @@ const RANGES: { value: OrgChartRange; label: string }[] = [
 /** Legend strip explaining the four activity tiers + the at-risk overlay. */
 function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-wider text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
       <span className="inline-flex items-center gap-1">
         <Sparkles className="h-3 w-3 text-emerald-300" />
         Issue Paid
@@ -70,22 +70,39 @@ export function AgentsOrgChart({ range, onRangeChange }: Props) {
         </div>
       </div>
 
-      {/* Tree */}
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : forest.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-sm text-muted-foreground">
-          No agents in your scope yet. Add your first agent to start building the tree.
+      {/* Tree canvas — heavy glass container, horizontally scrollable */}
+      <div className="relative overflow-hidden rounded-2xl glass-strong">
+        {/* Ambient backdrop wash behind the tree, very subtle */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-50"
+          style={{
+            background:
+              "radial-gradient(at 50% 0%, hsl(38 92% 60% / 0.06) 0px, transparent 50%), " +
+              "radial-gradient(at 50% 100%, hsl(280 60% 50% / 0.04) 0px, transparent 50%)",
+          }}
+        />
+
+        <div className="relative overflow-x-auto overflow-y-hidden">
+          <div className="min-w-full px-8 py-10">
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : error ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : forest.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-sm text-muted-foreground">
+                No agents in your scope yet. Add your first agent to start building the tree.
+              </div>
+            ) : (
+              <div className="flex justify-center gap-12">
+                {forest.map((root) => (
+                  <AgentOrgCardNode key={root.id} node={root} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {forest.map((root) => (
-            <AgentOrgCardNode key={root.id} node={root} />
-          ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

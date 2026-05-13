@@ -164,3 +164,101 @@
     100% { background-position:   0% 50%; }
   }
 }
+
+/* ============================================================================
+ * Phase 13.1: Horizontal pyramid org-chart connectors.
+ *
+ * Pure-CSS tree using nested flex containers + pseudo-elements for the
+ * connector geometry. No JavaScript layout math, no SVG paths, no
+ * external libraries. Works for any tree size and is responsive enough
+ * (parent container scrolls horizontally for wide trees).
+ *
+ * Structure:
+ *   .org-chart-node            — wraps one card + its children container
+ *     .org-chart-card          — the card itself (rendered by AgentOrgCardNode)
+ *     .org-chart-children      — flex row of child .org-chart-node elements
+ *       .org-chart-node × N
+ *
+ * Connectors (drawn via ::before/::after, NOT inside the card):
+ *   .org-chart-children::before    — vertical drop from parent card to manifold
+ *   .org-chart-node::before        — vertical drop from manifold to child card
+ *   .org-chart-node::after         — horizontal manifold piece spanning siblings
+ *
+ * The first/last child trim their manifold half so the line doesn't extend
+ * past the outermost children. Single-child case hides the manifold entirely
+ * (only the two vertical drops remain, visually a straight line).
+ * ========================================================================== */
+
+@layer components {
+  .org-chart-children {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    padding-top: 2.5rem;
+  }
+
+  /* Vertical drop from parent card bottom down to the horizontal manifold. */
+  .org-chart-children::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 1.25rem;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom,
+                                hsl(0 0% 100% / 0.18),
+                                hsl(0 0% 100% / 0.08));
+    border-radius: 1px;
+  }
+
+  .org-chart-node {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Vertical drop from horizontal manifold to this child's card top. */
+  .org-chart-children > .org-chart-node::before {
+    content: "";
+    position: absolute;
+    top: -1.25rem;
+    left: 50%;
+    width: 2px;
+    height: 1.25rem;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom,
+                                hsl(0 0% 100% / 0.08),
+                                hsl(0 0% 100% / 0.18));
+    border-radius: 1px;
+  }
+
+  /* Horizontal manifold piece — every child has one. */
+  .org-chart-children > .org-chart-node::after {
+    content: "";
+    position: absolute;
+    top: -1.25rem;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: hsl(0 0% 100% / 0.12);
+    border-radius: 1px;
+  }
+
+  /* First child: hide left half of its manifold piece. */
+  .org-chart-children > .org-chart-node:first-child::after {
+    left: 50%;
+  }
+
+  /* Last child: hide right half. */
+  .org-chart-children > .org-chart-node:last-child::after {
+    right: 50%;
+  }
+
+  /* Only child: hide the manifold entirely (two vertical drops align). */
+  .org-chart-children > .org-chart-node:only-child::after {
+    display: none;
+  }
+}
