@@ -36,37 +36,37 @@ export function StatusSplitCards({ data, loading }: Props) {
       />
       <MetricCard
         label="Submitted" value={moneyWithPct(data?.submitted_premium ?? 0)}
-        icon={<TrendingUp className="h-4 w-4" />} loading={loading}
+        icon={<TrendingUp className="h-4 w-4 text-sky-300" />} loading={loading}
         tooltip="Annual premium of policies currently in Submitted status."
       />
       <MetricCard
         label="Pending" value={moneyWithPct(data?.pending_premium ?? 0)}
-        icon={<Clock className="h-4 w-4" />} loading={loading}
+        icon={<Clock className="h-4 w-4 text-amber-300" />} loading={loading}
         tooltip="Annual premium of policies currently in Pending status."
       />
       <MetricCard
         label="Active" value={moneyWithPct(data?.active_premium ?? 0)}
-        icon={<CheckCircle className="h-4 w-4" />} loading={loading}
+        icon={<CheckCircle className="h-4 w-4 text-emerald-300" />} loading={loading}
         tooltip="Annual premium of policies in Issued or Issue Paid status."
       />
       <MetricCard
         label="Potential Lapse" value={moneyWithPct(data?.lapse_premium ?? 0)}
-        icon={<AlertTriangle className="h-4 w-4 text-destructive" />} loading={loading}
+        icon={<AlertTriangle className="h-4 w-4 text-orange-300" />} loading={loading}
         tooltip="Annual premium of policies flagged Potential Lapse — at-risk."
       />
       <MetricCard
         label="Terminated" value={moneyWithPct(data?.terminated_premium ?? 0)}
-        icon={<XCircle className="h-4 w-4" />} loading={loading}
+        icon={<XCircle className="h-4 w-4 text-red-300" />} loading={loading}
         tooltip="Annual premium of policies in Terminated status."
       />
       <MetricCard
         label="Active Agents" value={fmtCount(data?.active_agents ?? 0)}
-        icon={<Users className="h-4 w-4" />} loading={loading}
+        icon={<Users className="h-4 w-4 text-muted-foreground" />} loading={loading}
         tooltip="Distinct agents who wrote at least one policy in the last 30 days. The billing unit; ignores the page's date range."
       />
       <MetricCard
         label="Booked Policies" value={fmtCount(data?.booked_policies ?? 0)}
-        icon={<FileText className="h-4 w-4" />} loading={loading}
+        icon={<FileText className="h-4 w-4 text-primary" />} loading={loading}
         tooltip="Count of policies in Issued or Issue Paid status in the window."
       />
     </div>

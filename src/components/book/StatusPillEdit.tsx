@@ -1,19 +1,17 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpdatePolicyStatus } from "@/hooks/useUpdatePolicyStatus";
-import { POLICY_STATUS_VALUES, statusToBucket, type PolicyStatus } from "@/lib/policy-bucket";
-import { Badge } from "@/components/ui/badge";
-
-const BUCKET_VARIANT: Record<string, "default" | "success" | "warning" | "muted" | "destructive"> = {
-  Pipeline: "default",
-  Booked: "success",
-  Realized: "success",
-  "At-Risk": "warning",
-  Other: "muted",
-};
+import { POLICY_STATUS_VALUES, type PolicyStatus } from "@/lib/policy-bucket";
+import { StatusPill } from "@/components/ui/status-pill";
+import { ChevronDown } from "lucide-react";
 
 type Props = { policyId: string; status: PolicyStatus };
 
+/**
+ * Owner-editable status pill. Non-owners see a static StatusPill (read-only).
+ * Owners get the same pill with a chevron + dropdown of all 7 statuses;
+ * picking a new one writes via useUpdatePolicyStatus.
+ */
 export function StatusPillEdit({ policyId, status }: Props) {
   const { isOwner } = useAuth();
   const { update, submitting } = useUpdatePolicyStatus();
@@ -21,7 +19,7 @@ export function StatusPillEdit({ policyId, status }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   if (!isOwner) {
-    return <Badge variant={BUCKET_VARIANT[statusToBucket(status)]}>{status}</Badge>;
+    return <StatusPill status={status} />;
   }
 
   async function handleChange(newStatus: PolicyStatus) {
@@ -39,13 +37,17 @@ export function StatusPillEdit({ policyId, status }: Props) {
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
         className="cursor-pointer"
         disabled={submitting}
+        aria-label="Change status"
       >
-        <Badge variant={BUCKET_VARIANT[statusToBucket(status)]}>{status} {submitting ? "…" : "▾"}</Badge>
+        <StatusPill
+          status={status}
+          trailing={submitting ? <span className="opacity-70">…</span> : <ChevronDown className="h-3 w-3 opacity-70" />}
+        />
       </button>
       {open && (
         <ul
           onClick={(e) => e.stopPropagation()}
-          className="absolute left-0 top-full z-50 mt-1 w-44 rounded-md border bg-popover p-1 text-sm shadow-md"
+          className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-white/10 bg-popover p-1 text-sm shadow-2xl backdrop-blur-xl"
         >
           {POLICY_STATUS_VALUES.map((s) => (
             <li key={s}>
@@ -53,12 +55,12 @@ export function StatusPillEdit({ policyId, status }: Props) {
                 onClick={() => void handleChange(s)}
                 className={
                   s === status
-                    ? "flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-muted-foreground"
-                    : "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-accent"
+                    ? "flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-muted-foreground"
+                    : "flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-white/[0.06]"
                 }
               >
-                <Badge variant={BUCKET_VARIANT[statusToBucket(s)]}>{s}</Badge>
-                {s === status && <span className="text-xs">current</span>}
+                <StatusPill status={s} />
+                {s === status && <span className="ml-auto text-[10px] text-muted-foreground">current</span>}
               </button>
             </li>
           ))}
