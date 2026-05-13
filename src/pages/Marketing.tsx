@@ -160,7 +160,7 @@ export function MarketingPage() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
               to="/login"
-              className="hidden rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
+              className="rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-3"
             >
               Sign in
             </Link>

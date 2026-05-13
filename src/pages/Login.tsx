@@ -6,17 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 
 export function LoginPage() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
+  const from = (location.state as { from?: string } | null)?.from ?? "/home";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   if (!loading && session) return <Navigate to={from} replace />;
 
@@ -68,7 +70,16 @@ export function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-baseline justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <button
+                    type="button"
+                    onClick={() => setForgotOpen(true)}
+                    className="text-[11px] font-medium text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -97,6 +108,12 @@ export function LoginPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ForgotPasswordDialog
+        open={forgotOpen}
+        onClose={() => setForgotOpen(false)}
+        defaultEmail={email}
+      />
     </div>
   );
 }

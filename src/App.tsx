@@ -7,6 +7,8 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { MarketingPage } from "@/pages/Marketing";
 import { LoginPage } from "@/pages/Login";
 import { SignupPage } from "@/pages/Signup";
+import { AcceptInvitePage } from "@/pages/AcceptInvite";
+import { ResetPasswordPage } from "@/pages/ResetPassword";
 import { DashboardPage } from "@/pages/Dashboard";
 import { HomePage } from "@/pages/Home";
 import { AgentsPage } from "@/pages/Agents";
@@ -40,6 +42,13 @@ export default function App() {
 
           <Route path="/login"  element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+
+          {/* Magic-link landing pages. Both require a session (from clicking
+              the email link) and have their own redirect-if-not-signed-in
+              guards built in. NOT wrapped in DashboardShell — these are
+              full-screen auth flows with their own chrome. */}
+          <Route path="/accept-invite"   element={<AcceptInvitePage />} />
+          <Route path="/reset-password"  element={<ResetPasswordPage />} />
 
           <Route
             element={

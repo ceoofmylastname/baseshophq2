@@ -1,13 +1,17 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { AccountSection } from "@/components/settings/AccountSection";
 import { BroadcastEditor } from "@/components/settings/BroadcastEditor";
 import { PromotionTargetEditor } from "@/components/settings/PromotionTargetEditor";
 import { PositionEditor } from "@/components/settings/PositionEditor";
 
 /**
- * Settings page hosts the owner-side editors for tenant-level configuration.
+ * Settings page hosts BOTH every-user account management (email + password)
+ * AND owner-only tenant configuration. The Account section is always
+ * visible; the owner-only sections are gated on isOwner.
  *
  * Phase 10F.6: Home page content (broadcasts + promotion ladder).
  * Phase 10F.7: Position ladder editor — owner controls the rungs themselves.
+ * Phase 16.0:  Account section — email + password change for every user.
  *
  * Section-based scroll layout; sub-routes can come later if the page grows.
  */
@@ -19,16 +23,22 @@ export function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-shadow-soft">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tenant configuration, position ladder, and home page content.
+          Manage your account credentials.{isOwner ? " Owner-only sections cover tenant configuration." : ""}
         </p>
       </div>
 
-      {!isOwner ? (
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-sm text-muted-foreground">
-          Settings are owner-only. Ask your agency owner to configure home page content,
-          promotion criteria, position ladder, and tenant defaults.
+      {/* Account section — available to every authenticated user */}
+      <section className="rounded-2xl glass p-5">
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Account
+          </h2>
         </div>
-      ) : (
+        <AccountSection />
+      </section>
+
+      {/* Owner-only sections */}
+      {isOwner ? (
         <>
           <section className="rounded-2xl glass p-5">
             <div className="mb-4">
@@ -59,6 +69,11 @@ export function SettingsPage() {
             </div>
           </section>
         </>
+      ) : (
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-sm text-muted-foreground">
+          Additional settings (position ladder, home page broadcasts, promotion criteria) are owner-only.
+          Ask your agency owner to configure them.
+        </div>
       )}
     </div>
   );
