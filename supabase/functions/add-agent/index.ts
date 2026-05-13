@@ -129,9 +129,22 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Invite (creates auth.users + sends invite email)
+  // Invite (creates auth.users + sends invite email).
+  //
+  // redirectTo points at /accept-invite so the invitee lands on the
+  // "set your password" page rather than being silently auto-signed-in
+  // to /home without ever setting credentials. Without this, the invitee
+  // has a session but no password, which makes /settings → Change Password
+  // impossible (the form requires a current password to verify before
+  // updating).
+  //
+  // Site URL is read from a public env (PUBLIC_SITE_URL) with a fall-back
+  // to https://baseshophq.com so this works in prod even if the env var
+  // is unset. Local dev should set PUBLIC_SITE_URL=http://localhost:5173.
+  const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? "https://baseshophq.com";
   const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(body.email, {
     data: { first_name: body.firstName, last_name: body.lastName },
+    redirectTo: `${siteUrl}/accept-invite`,
   });
   if (inviteErr || !invited.user) {
     return jsonResponse(500, {

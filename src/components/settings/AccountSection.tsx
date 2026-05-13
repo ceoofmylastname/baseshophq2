@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Check, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, Check, Eye, EyeOff, ArrowRight, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -111,6 +111,26 @@ function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset-via-email escape hatch for users who don't have a current password
+  // (e.g., invitees who clicked the magic link before /accept-invite shipped).
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  async function handleResetViaEmail() {
+    setResetError(null);
+    setResetSubmitting(true);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(currentEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetSubmitting(false);
+    if (err) {
+      setResetError(err.message);
+      return;
+    }
+    setResetSent(true);
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -229,6 +249,44 @@ function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
       <Button type="submit" disabled={submitting || !currentPassword || !newPassword || !confirm}>
         {submitting ? "Updating…" : "Update password"}
       </Button>
+
+      {/* Escape hatch: reset via email.
+          Catches the case where the user came in through an invite link
+          (no current password ever set) or honestly doesn't remember.
+          We pre-fill their email and send through the standard
+          forgot-password flow, which lands them on /reset-password where
+          they set a new one without needing the old one. */}
+      <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+        <div className="flex items-start gap-3">
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Don&apos;t know your current password?</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Common if you joined through an invite link and never set one.
+              We&apos;ll email <span className="font-medium text-foreground">{currentEmail}</span> a
+              link to set a new password without needing the old one.
+            </p>
+            {resetError && <p className="mt-2 text-sm text-destructive">{resetError}</p>}
+            {resetSent ? (
+              <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-emerald-300">
+                <Check className="h-4 w-4" />
+                Link sent. Check your inbox.
+              </p>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void handleResetViaEmail()}
+                disabled={resetSubmitting}
+                className="mt-3"
+              >
+                {resetSubmitting ? "Sending…" : "Send me a reset link"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
     </form>
   );
 }
