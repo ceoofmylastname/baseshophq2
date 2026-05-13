@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AccountSection } from "@/components/settings/AccountSection";
 import { AgencyProfileSection } from "@/components/settings/AgencyProfileSection";
+import { ProfileSection } from "@/components/settings/ProfileSection";
 import { BroadcastEditor } from "@/components/settings/BroadcastEditor";
 import { PromotionTargetEditor } from "@/components/settings/PromotionTargetEditor";
 import { PositionEditor } from "@/components/settings/PositionEditor";
@@ -14,6 +15,7 @@ import { PositionEditor } from "@/components/settings/PositionEditor";
  * Phase 10F.7: Position ladder editor — owner controls the rungs themselves.
  * Phase 16.0:  Account section — email + password change for every user.
  * Phase 15.3:  Agency profile — owner edits tenant name + slug.
+ * Phase 13.3:  Profile section — every user edits photo + name + bio.
  *
  * Section-based scroll layout; sub-routes can come later if the page grows.
  */
@@ -28,6 +30,16 @@ export function SettingsPage() {
           Manage your account credentials.{isOwner ? " Owner-only sections cover tenant configuration." : ""}
         </p>
       </div>
+
+      {/* Profile section — available to every authenticated user */}
+      <section className="rounded-2xl glass p-5">
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Profile
+          </h2>
+        </div>
+        <ProfileSection />
+      </section>
 
       {/* Account section — available to every authenticated user */}
       <section className="rounded-2xl glass p-5">

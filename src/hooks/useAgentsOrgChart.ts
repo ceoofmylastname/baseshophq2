@@ -10,6 +10,8 @@ export type OrgChartRow = {
   first_name: string | null;
   last_name: string | null;
   email: string;
+  avatar_url: string | null;
+  title: string | null;
   upline_agent_id: string | null;
   is_owner: boolean;
   position_code: string | null;

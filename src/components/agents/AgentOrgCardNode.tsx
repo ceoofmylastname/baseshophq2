@@ -4,6 +4,7 @@ import { ChevronDown, AlertTriangle, Sparkles, Zap, Moon, Snowflake } from "luci
 import {
   type OrgChartNode, activityTier, type ActivityTier, type OrgChartRange,
 } from "@/hooks/useAgentsOrgChart";
+import { AgentAvatar, initialsFor } from "@/components/agents/AgentAvatar";
 import { cn } from "@/lib/utils";
 
 /**
@@ -71,13 +72,6 @@ const RANGE_LABEL: Record<OrgChartRange, string> = {
   year:  "this year",
 };
 
-function initialsOf(firstName: string | null, lastName: string | null, email: string): string {
-  const f = (firstName ?? "").trim();
-  const l = (lastName ?? "").trim();
-  if (f || l) return `${f.charAt(0)}${l.charAt(0)}`.toUpperCase() || email.charAt(0).toUpperCase();
-  return email.charAt(0).toUpperCase();
-}
-
 export type AgentCardSelection = {
   agentId: string;
   agentName: string;
@@ -85,6 +79,10 @@ export type AgentCardSelection = {
   initials: string;
   initialsBg: string;
   initialsText: string;
+  avatarUrl: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
 };
 
 type Props = {
@@ -104,7 +102,7 @@ export function AgentOrgCardNode({ node, range, onSelect }: Props) {
   const position = node.position_name
     ? `${node.position_name}${node.position_code ? ` · ${node.position_code}` : ""}`
     : node.is_owner ? "Owner" : "—";
-  const initials = initialsOf(node.first_name, node.last_name, node.email);
+  const initials = initialsFor(node.first_name, node.last_name, node.email);
   const windowLabel = RANGE_LABEL[range];
 
   function handleCardClick(e: React.MouseEvent) {
@@ -119,6 +117,10 @@ export function AgentOrgCardNode({ node, range, onSelect }: Props) {
       initials,
       initialsBg:    v.avatarBg,
       initialsText:  v.avatarText,
+      avatarUrl:     node.avatar_url,
+      firstName:     node.first_name,
+      lastName:      node.last_name,
+      email:         node.email,
     });
   }
 
@@ -142,15 +144,16 @@ export function AgentOrgCardNode({ node, range, onSelect }: Props) {
           <div className={cn("h-[3px] w-full", v.ribbon)} aria-hidden />
 
           <div className="flex flex-col items-center px-4 pb-3 pt-4">
-            <div
-              className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-lg",
-                v.avatarBg,
-                v.avatarText,
-              )}
-            >
-              {initials}
-            </div>
+            <AgentAvatar
+              avatarUrl={node.avatar_url}
+              firstName={node.first_name}
+              lastName={node.last_name}
+              email={node.email}
+              size="lg"
+              fallbackBg={v.avatarBg}
+              fallbackText={v.avatarText}
+              className="shadow-lg"
+            />
 
             <div className="mt-2.5 flex items-center justify-center gap-1.5">
               <Link

@@ -7,6 +7,10 @@ export type AgentProfile = {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  title: string | null;
+  bio: string | null;
   is_owner: boolean;
   status: "active" | "inactive" | "archived";
   upline_email: string | null;

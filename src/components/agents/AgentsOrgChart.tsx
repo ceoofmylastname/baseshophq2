@@ -230,9 +230,12 @@ export function AgentsOrgChart({ range, onRangeChange }: Props) {
         agentId={selection?.agentId ?? null}
         agentName={selection?.agentName ?? ""}
         agentPosition={selection?.agentPosition ?? ""}
-        initials={selection?.initials ?? ""}
         initialsBg={selection?.initialsBg ?? ""}
         initialsText={selection?.initialsText ?? ""}
+        avatarUrl={selection?.avatarUrl ?? null}
+        firstName={selection?.firstName ?? null}
+        lastName={selection?.lastName ?? null}
+        email={selection?.email ?? ""}
         onClose={() => setSelection(null)}
       />
     </div>

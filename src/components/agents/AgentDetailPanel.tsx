@@ -5,15 +5,21 @@ import {
   useAgentActivityBreakdown, type WindowKey, type WindowStats,
 } from "@/hooks/useAgentActivityBreakdown";
 import { StatusPill } from "@/components/ui/status-pill";
+import { AgentAvatar } from "@/components/agents/AgentAvatar";
 import { cn } from "@/lib/utils";
 
 type Props = {
   agentId: string | null;
   agentName: string;
   agentPosition: string;
+  /** Initials fallback styling — used when no photo is set. */
   initialsBg: string;
   initialsText: string;
-  initials: string;
+  /** Optional photo URL — falls back to colored initials when null/missing. */
+  avatarUrl?: string | null;
+  firstName?: string | null;
+  lastName?:  string | null;
+  email?:     string;
   onClose: () => void;
 };
 
@@ -68,7 +74,8 @@ function WindowSection({ label, stats }: { label: string; stats: WindowStats }) 
 }
 
 export function AgentDetailPanel({
-  agentId, agentName, agentPosition, initialsBg, initialsText, initials, onClose,
+  agentId, agentName, agentPosition, initialsBg, initialsText,
+  avatarUrl, firstName, lastName, email, onClose,
 }: Props) {
   const { data, loading } = useAgentActivityBreakdown(agentId);
 
@@ -106,12 +113,16 @@ export function AgentDetailPanel({
       >
         {/* Header */}
         <header className="flex items-start gap-3 border-b border-white/[0.06] p-5">
-          <div className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-full border text-lg font-semibold shadow-lg",
-            initialsBg, initialsText,
-          )}>
-            {initials}
-          </div>
+          <AgentAvatar
+            avatarUrl={avatarUrl}
+            firstName={firstName}
+            lastName={lastName}
+            email={email ?? agentName}
+            size="xl"
+            fallbackBg={initialsBg}
+            fallbackText={initialsText}
+            className="shadow-lg"
+          />
           <div className="flex-1 min-w-0">
             <h2 className="truncate text-base font-semibold tracking-tight text-shadow-soft">
               {agentName}

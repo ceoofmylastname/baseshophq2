@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AgentAvatar } from "@/components/agents/AgentAvatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,6 +42,15 @@ export function TopBar() {
             variant="ghost"
             className="ml-2 shrink-0 gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 hover:bg-white/[0.06] hover:border-white/[0.12] sm:gap-2 sm:px-3"
           >
+            <AgentAvatar
+              avatarUrl={currentAgent?.avatar_url}
+              firstName={currentAgent?.first_name}
+              lastName={currentAgent?.last_name}
+              email={currentAgent?.email ?? ""}
+              size="xs"
+              fallbackBg="bg-primary/15 border-primary/40"
+              fallbackText="text-primary"
+            />
             {/* Hide name on very narrow screens; rely on Owner badge + chevron */}
             <span className="hidden max-w-[120px] truncate text-sm font-medium sm:inline">
               {displayName}

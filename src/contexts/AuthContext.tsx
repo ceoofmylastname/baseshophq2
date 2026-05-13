@@ -33,6 +33,8 @@ export type Agent = {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  avatar_url: string | null;
+  title: string | null;
   is_owner: boolean;
   status: "active" | "inactive" | "archived";
 };
@@ -72,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error: err } = await supabase
       .from("agents")
       .select(
-        "id, tenant_id, email, first_name, last_name, is_owner, status, tenant:tenants!agents_tenant_id_fkey(id, name, slug, status)",
+        "id, tenant_id, email, first_name, last_name, avatar_url, title, is_owner, status, tenant:tenants!agents_tenant_id_fkey(id, name, slug, status)",
       )
       .eq("id", userId)
       .maybeSingle();
