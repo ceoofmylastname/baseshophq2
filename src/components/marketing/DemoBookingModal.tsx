@@ -194,7 +194,7 @@ function CalendarStep({
             <Clock className="h-3.5 w-3.5" />
             {fmtDateLong(selectedDate)} · pick a 30-min slot · Las Vegas time
           </div>
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-1.5">
             {TIME_SLOTS.map((slot) => {
               const isSelected = selectedTime === slot;
               return (
@@ -203,10 +203,10 @@ function CalendarStep({
                   type="button"
                   onClick={() => onSelectTime(slot)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-all",
+                    "rounded-lg border px-2 py-3 text-sm font-medium transition-all sm:py-2 sm:text-xs",
                     isSelected
                       ? "border-primary/40 bg-primary/15 text-primary shadow-[0_0_16px_hsl(38_92%_60%/0.3)]"
-                      : "border-white/10 bg-white/[0.02] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
+                      : "border-white/10 bg-white/[0.02] text-muted-foreground active:bg-white/[0.08] sm:hover:bg-white/[0.06] sm:hover:text-foreground",
                   )}
                 >
                   {formatTime(slot)}
@@ -261,21 +261,21 @@ function FormStep({
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="d-name">Your name <span className="text-destructive">*</span></Label>
           <Input
             id="d-name" value={name} onChange={(e) => setName(e.target.value)}
             required autoFocus
-            className="border-white/10 bg-white/[0.03] focus-visible:ring-primary"
+            className="h-11 border-white/10 bg-white/[0.03] focus-visible:ring-primary sm:h-10"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="d-email">Work email <span className="text-destructive">*</span></Label>
           <Input
             id="d-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            required
-            className="border-white/10 bg-white/[0.03] focus-visible:ring-primary"
+            required inputMode="email" autoCapitalize="none" autoComplete="email"
+            className="h-11 border-white/10 bg-white/[0.03] focus-visible:ring-primary sm:h-10"
           />
         </div>
       </div>
@@ -285,7 +285,7 @@ function FormStep({
         <Input
           id="d-agency" value={agencyName} onChange={(e) => setAgencyName(e.target.value)}
           placeholder="e.g. JRM Enterprise Group"
-          className="border-white/10 bg-white/[0.03] focus-visible:ring-primary"
+          className="h-11 border-white/10 bg-white/[0.03] focus-visible:ring-primary sm:h-10"
         />
       </div>
 
@@ -298,10 +298,10 @@ function FormStep({
               type="button"
               onClick={() => setAgencySize(s)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                "rounded-full border px-3.5 py-2 text-sm font-medium transition-colors sm:py-1 sm:text-xs",
                 agencySize === s
                   ? "border-primary/40 bg-primary/15 text-primary"
-                  : "border-white/10 bg-white/[0.02] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
+                  : "border-white/10 bg-white/[0.02] text-muted-foreground active:bg-white/[0.08] sm:hover:bg-white/[0.06] sm:hover:text-foreground",
               )}
             >
               {s} agents
@@ -485,18 +485,21 @@ export function DemoBookingModal({ open, onClose, source = "homepage" }: Props) 
         )}
       />
 
-      {/* Modal */}
+      {/* Modal — full-screen on mobile, centered dialog on desktop */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Book a private demo"
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-2xl glass-strong shadow-2xl transition-all duration-300",
-          open ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0",
+          "fixed inset-0 z-50 flex flex-col glass-strong shadow-2xl transition-all duration-300",
+          "sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl",
+          open
+            ? "translate-y-0 opacity-100 sm:scale-100"
+            : "pointer-events-none translate-y-4 opacity-0 sm:translate-y-0 sm:scale-95",
         )}
       >
         {/* Header */}
-        <header className="flex items-center justify-between border-b border-white/[0.06] px-6 py-4">
+        <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-3 sm:px-6 sm:py-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
               Book a private demo
@@ -529,7 +532,7 @@ export function DemoBookingModal({ open, onClose, source = "homepage" }: Props) 
         </header>
 
         {/* Body */}
-        <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {step === "calendar" && (
             <CalendarStep
               selectedDate={selectedDate}

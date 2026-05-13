@@ -26,21 +26,25 @@ export function TopBar() {
     "—";
 
   return (
-    <div className="flex h-full items-center justify-between px-6">
-      <div className="flex flex-col">
-        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+    <div className="flex h-full items-center justify-between px-3 sm:px-6">
+      {/* Tenant info — full label on desktop, single-line + truncate on mobile */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="hidden text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:inline">
           Tenant
         </span>
-        <span className="text-sm font-semibold tracking-tight">{tenant?.name ?? "—"}</span>
+        <span className="truncate text-sm font-semibold tracking-tight">{tenant?.name ?? "—"}</span>
       </div>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.12]"
+            className="ml-2 shrink-0 gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 hover:bg-white/[0.06] hover:border-white/[0.12] sm:gap-2 sm:px-3"
           >
-            <span className="text-sm font-medium">{displayName}</span>
+            {/* Hide name on very narrow screens; rely on Owner badge + chevron */}
+            <span className="hidden max-w-[120px] truncate text-sm font-medium sm:inline">
+              {displayName}
+            </span>
             {isOwner && (
               <span className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
                 Owner
@@ -51,6 +55,7 @@ export function TopBar() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="text-xs text-muted-foreground">
+            <span className="block truncate font-semibold text-foreground sm:hidden">{displayName}</span>
             {currentAgent?.email}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />

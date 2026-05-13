@@ -146,7 +146,7 @@ export function MarketingPage() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
-      {/* Sticky nav */}
+      {/* Sticky nav — compact on mobile, full on desktop */}
       <nav
         className={cn(
           "fixed inset-x-0 top-0 z-30 transition-all duration-300",
@@ -155,12 +155,12 @@ export function MarketingPage() {
             : "bg-transparent",
         )}
       >
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <BaseshopLogo className="h-9 w-auto" />
-          <div className="flex items-center gap-2">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6">
+          <BaseshopLogo className="h-7 w-auto sm:h-9" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
               to="/login"
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="hidden rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
             >
               Sign in
             </Link>
@@ -175,9 +175,10 @@ export function MarketingPage() {
         </div>
       </nav>
 
-      {/* Hero — text only, centered, ~100vh */}
-      <section className="relative flex min-h-screen items-center justify-center px-6 pt-32 pb-12">
-        {/* Ambient gradient backdrop */}
+      {/* Hero — text only, centered, ~100vh.
+          Mobile: tighter padding, smaller headline, full-width CTAs.
+          Desktop: large dramatic typography, max-w container. */}
+      <section className="relative flex min-h-screen items-center justify-center px-4 pt-24 pb-12 sm:px-6 sm:pt-32">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
@@ -189,22 +190,22 @@ export function MarketingPage() {
           }}
         />
 
-        <div className="relative max-w-4xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <div className="relative w-full max-w-4xl text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-primary sm:px-3 sm:text-[10px] sm:tracking-[0.18em]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
             Built for life insurance agencies
           </span>
-          <h1 className="mt-6 text-5xl font-semibold tracking-tight text-shadow-hero sm:text-6xl md:text-7xl">
+          <h1 className="mt-5 text-4xl font-semibold tracking-tight text-shadow-hero sm:mt-6 sm:text-6xl md:text-7xl">
             Run your agency
             <br />
             like it&apos;s {" "}
             <span className="gold-shimmer">already won.</span>
           </h1>
-          <p className="mx-auto mt-7 max-w-2xl text-base text-muted-foreground sm:text-lg">
+          <p className="mx-auto mt-5 max-w-xl text-sm text-muted-foreground sm:mt-7 sm:max-w-2xl sm:text-lg">
             Track every policy. Auto-route every carrier CSV. See every agent&apos;s rank in real time.
             One platform for small shops and 500-agent operations alike.
           </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-8 flex flex-col items-stretch justify-center gap-2.5 sm:mt-10 sm:flex-row sm:items-center sm:gap-3">
             <Button
               size="lg"
               onClick={() => setDemoOpen(true)}
@@ -214,7 +215,7 @@ export function MarketingPage() {
             </Button>
             <a
               href="#showcase"
-              className="rounded-full border border-white/10 bg-white/[0.02] px-5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+              className="rounded-full border border-white/10 bg-white/[0.02] px-5 py-2.5 text-center text-sm font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
             >
               See it in action
             </a>
@@ -222,13 +223,13 @@ export function MarketingPage() {
         </div>
       </section>
 
-      {/* Video showcase — contained, framed, sits cleanly below the hero text */}
-      <section id="showcase" className="relative pb-24">
+      {/* Video showcase */}
+      <section id="showcase" className="relative pb-16 sm:pb-24">
         <VideoShowcase />
       </section>
 
       {/* Intro band — positioning + 3 trust pillars */}
-      <section className="relative border-t border-white/[0.04] bg-background py-24">
+      <section className="relative border-t border-white/[0.04] bg-background py-16 sm:py-24">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-60"
@@ -237,19 +238,19 @@ export function MarketingPage() {
               "radial-gradient(at 50% 0%, hsl(38 92% 60% / 0.08) 0px, transparent 50%)",
           }}
         />
-        <div className="relative mx-auto max-w-5xl px-6 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
             One platform.
             <br />
             <span className="text-muted-foreground">Every report, every carrier, every agent.</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-sm text-muted-foreground sm:text-base">
+          <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground sm:mt-5 sm:text-base">
             Built from the ground up for insurance agencies that need real numbers,
             not just dashboards. Hierarchy-aware permissions, writing-number-first carrier ingest,
             and a commission engine that knows your contract rates.
           </p>
 
-          <div className="mt-12 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-3">
             {[
               { Icon: Zap,           title: "Carrier-agnostic ingest",   body: "Drop a CSV from any carrier. The system auto-matches by writing number, falls back to email, and flags orphans." },
               { Icon: CheckCircle2,  title: "Hierarchy-aware",          body: "Owners see everything. Managers see their downline. Agents see themselves. Never sideways, never up." },
@@ -266,13 +267,13 @@ export function MarketingPage() {
       </section>
 
       {/* Features grid */}
-      <section id="features" className="relative border-t border-white/[0.04] py-24">
-        <div className="mx-auto max-w-6xl px-6">
+      <section id="features" className="relative border-t border-white/[0.04] py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
               The surfaces
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl text-shadow-soft">
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-4xl text-shadow-soft">
               Seven views.
               <br />
               One source of truth.
@@ -283,7 +284,7 @@ export function MarketingPage() {
             </p>
           </div>
 
-          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(({ Icon, title, body, tier }) => (
               <div
                 key={title}
@@ -316,7 +317,7 @@ export function MarketingPage() {
       </section>
 
       {/* How it works */}
-      <section className="relative border-t border-white/[0.04] py-24">
+      <section className="relative border-t border-white/[0.04] py-16 sm:py-24">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-50"
@@ -326,17 +327,17 @@ export function MarketingPage() {
               "radial-gradient(at 90% 50%, hsl(280 60% 50% / 0.05) 0px, transparent 40%)",
           }}
         />
-        <div className="relative mx-auto max-w-5xl px-6">
+        <div className="relative mx-auto max-w-5xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
               How it works
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl text-shadow-soft">
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-4xl text-shadow-soft">
               Zero to running in one sitting.
             </h2>
           </div>
 
-          <ol className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ol className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step, i) => (
               <li key={step.title} className="relative rounded-2xl glass p-5">
                 <div className="flex items-start gap-3">
@@ -355,9 +356,9 @@ export function MarketingPage() {
       </section>
 
       {/* Stats band */}
-      <section className="relative border-t border-white/[0.04] py-24">
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="relative border-t border-white/[0.04] py-16 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="grid grid-cols-2 gap-8 sm:gap-10 lg:grid-cols-4">
             <AnimatedStat value={7}     suffix=""    label="Policy statuses tracked" />
             <AnimatedStat value={500}   suffix="+"   label="Agents per agency, scale-ready" />
             <AnimatedStat value={30}    suffix="-day" label="Active-agent billing window" />
@@ -367,20 +368,20 @@ export function MarketingPage() {
       </section>
 
       {/* Closing CTA */}
-      <section className="relative border-t border-white/[0.04] py-28">
+      <section className="relative border-t border-white/[0.04] py-20 sm:py-28">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-90 gradient-rim"
         />
-        <div className="relative mx-auto max-w-3xl px-6 text-center">
-          <h2 className="text-4xl font-semibold tracking-tight sm:text-5xl text-shadow-hero">
+        <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl text-shadow-hero">
             See it run live.
           </h2>
-          <p className="mt-5 text-base text-muted-foreground sm:text-lg">
+          <p className="mt-4 text-sm text-muted-foreground sm:mt-5 sm:text-lg">
             Forty-five minutes. Your screen, my screen. Real data, real workflows.
             By the end you&apos;ll know exactly how it would feel running your agency on Baseshop HQ.
           </p>
-          <div className="mt-10">
+          <div className="mt-8 sm:mt-10">
             <Button
               size="lg"
               onClick={() => setDemoOpen(true)}
@@ -393,8 +394,8 @@ export function MarketingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.04] py-10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
+      <footer className="border-t border-white/[0.04] py-8 sm:py-10">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
           <BaseshopLogo className="h-7 w-auto" />
           <p className="text-[11px] text-muted-foreground">
             © {new Date().getFullYear()} Baseshop HQ. Built in Las Vegas.
