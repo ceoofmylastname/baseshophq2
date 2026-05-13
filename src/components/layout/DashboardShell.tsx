@@ -57,8 +57,14 @@ export function DashboardShell() {
         </div>
       </div>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto p-4 sm:p-6">
+      {/* Main content.
+          overflow-y-auto handles vertical scrolling; overflow-x-hidden
+          prevents any page from forcing horizontal scroll on the whole
+          viewport (the org chart, master grid, and book of business
+          tables all have their OWN internal overflow-x-auto containers
+          that still scroll horizontally inside their bounds — so wide
+          tables work, but no page can blow out the page edge). */}
+      <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <Outlet />
       </main>
 
