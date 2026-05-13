@@ -648,7 +648,68 @@ ON CONFLICT (id) DO NOTHING;
 
 
 -- ---------------------------------------------------------------------------
--- 16. (Removed) Post-insert recalc loop.
+-- 16. Phase 10F seed: leadership broadcast, action item, promotion target.
+--     Gives /home immediate content on first login after a fresh reset.
+-- ---------------------------------------------------------------------------
+
+INSERT INTO public.leadership_broadcasts (
+    id, tenant_id, created_by_user_id, title, body, cta_text, cta_url,
+    targeting, start_at, end_at, is_active
+)
+VALUES (
+    'bbbbbbbb-0000-0000-0000-000000000001',
+    '11111111-1111-1111-1111-111111111111',
+    '22222222-0000-0000-0000-000000000001',
+    'Vegas conference registration is OPEN',
+    'Book your seat for the annual leadership summit. Limited to 200 agents.',
+    'Register now',
+    'https://baseshophq.com/events/vegas-2026',
+    '{"all": true}'::jsonb,
+    now() - interval '1 day',
+    now() + interval '14 days',
+    TRUE
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- One action item per third-level agent: "submit your writing number for F&G Life".
+-- Demonstrates the per-user banner pattern without targeting every agent.
+INSERT INTO public.user_action_items (
+    id, tenant_id, user_id, action_type, title, body,
+    cta_text, cta_url, is_dismissible
+)
+VALUES
+    ('cccccccc-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', '22222222-0000-0000-0000-000000000006', 'submit_writing_number',
+        'Submit your F&G Life writing number',
+        'Your commissions for F&G Life will not match until you submit your writing number.',
+        'Add now', '/contracts', TRUE),
+    ('cccccccc-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', '22222222-0000-0000-0000-000000000007', 'submit_writing_number',
+        'Submit your F&G Life writing number',
+        'Your commissions for F&G Life will not match until you submit your writing number.',
+        'Add now', '/contracts', TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+-- Promotion ladder: AGENT → DIRECTOR.
+-- Owners stay at OWNER (top rung, no target). Directors have no next rung
+-- in this seed. The 12 agents will see a populated promotion gauge.
+INSERT INTO public.promotion_targets (
+    id, tenant_id, from_position_id, to_position_id, criteria
+)
+VALUES (
+    'dddddddd-0000-0000-0000-000000000001',
+    '11111111-1111-1111-1111-111111111111',
+    '55555555-0000-0000-0000-000000000002',   -- AGENT
+    '55555555-0000-0000-0000-000000000003',   -- DIRECTOR
+    jsonb_build_object(
+        'min_premium_last_3_months', 50000,
+        'min_personal_policies',     12,
+        'min_active_downline_count', 3
+    )
+)
+ON CONFLICT (tenant_id, from_position_id) DO NOTHING;
+
+
+-- ---------------------------------------------------------------------------
+-- 17. (Removed) Post-insert recalc loop.
 --     Previously this section ran recalculate_policy_payouts on every
 --     Issued + Issue Paid policy because the old trigger only fired on
 --     INSERT-as-Issued / UPDATE-to-Issued. As of migration

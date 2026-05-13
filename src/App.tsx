@@ -6,6 +6,7 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { LoginPage } from "@/pages/Login";
 import { SignupPage } from "@/pages/Signup";
 import { DashboardPage } from "@/pages/Dashboard";
+import { HomePage } from "@/pages/Home";
 import { AgentsPage } from "@/pages/Agents";
 import { AgentProfilePage } from "@/pages/AgentProfile";
 import { IngestPage } from "@/pages/Ingest";
@@ -35,7 +36,8 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route path="/"          element={<Navigate to="/dashboard" replace />} />
+            <Route path="/"          element={<Navigate to="/home" replace />} />
+            <Route path="/home"      element={<HomePage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/agents"           element={<AgentsPage />} />
             <Route path="/agents/:agentId"  element={<AgentProfilePage />} />
@@ -76,7 +78,7 @@ export default function App() {
             <Route path="/settings"  element={<SettingsPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
