@@ -2,29 +2,25 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, AlertTriangle, Sparkles, Zap, Moon, Snowflake } from "lucide-react";
 import {
-  type OrgChartNode, activityTier, type ActivityTier,
+  type OrgChartNode, activityTier, type ActivityTier, type OrgChartRange,
 } from "@/hooks/useAgentsOrgChart";
 import { cn } from "@/lib/utils";
 
 /**
- * Per-tier visual treatment. Color rationale:
- *   issue_paid   emerald  — strongest: realized money in this window
- *   active       gold     — warm, brand primary; "writing right now"
- *   inactive_with_history zinc — neutral; "knows the work, just dormant"
- *   never_written         muted; "fresh recruit, hasn't shipped yet"
+ * Per-tier visual treatment.
  *
  * The at-risk overlay (orange ring + Risk badge) is independent — it stacks
  * on top of whatever base tier the agent has.
  */
 const TIER_VISUAL: Record<ActivityTier, {
-  ribbon: string;     // top color ribbon (3px, full saturation)
-  avatarBg: string;   // avatar circle background
-  avatarText: string; // avatar initials color
-  ring: string;       // ring around whole card
+  ribbon: string;
+  avatarBg: string;
+  avatarText: string;
+  ring: string;
   label: string;
   Icon: typeof Sparkles;
   iconClass: string;
-  glow: string;       // box-shadow glow under card
+  glow: string;
 }> = {
   issue_paid: {
     ribbon:     "bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-500",
@@ -68,18 +64,36 @@ const TIER_VISUAL: Record<ActivityTier, {
   },
 };
 
-function initials(firstName: string | null, lastName: string | null, email: string): string {
+const RANGE_LABEL: Record<OrgChartRange, string> = {
+  day:   "today",
+  week:  "this week",
+  month: "this month",
+  year:  "this year",
+};
+
+function initialsOf(firstName: string | null, lastName: string | null, email: string): string {
   const f = (firstName ?? "").trim();
   const l = (lastName ?? "").trim();
   if (f || l) return `${f.charAt(0)}${l.charAt(0)}`.toUpperCase() || email.charAt(0).toUpperCase();
   return email.charAt(0).toUpperCase();
 }
 
-type Props = { node: OrgChartNode };
+export type AgentCardSelection = {
+  agentId: string;
+  agentName: string;
+  agentPosition: string;
+  initials: string;
+  initialsBg: string;
+  initialsText: string;
+};
 
-export function AgentOrgCardNode({ node }: Props) {
-  // Root + first 2 levels start expanded so the pyramid reads on first load.
-  // Deeper levels start collapsed to keep wide trees manageable.
+type Props = {
+  node: OrgChartNode;
+  range: OrgChartRange;
+  onSelect: (selection: AgentCardSelection) => void;
+};
+
+export function AgentOrgCardNode({ node, range, onSelect }: Props) {
   const [expanded, setExpanded] = useState(node.depth <= 2);
 
   const tier = activityTier(node);
@@ -90,24 +104,38 @@ export function AgentOrgCardNode({ node }: Props) {
   const position = node.position_name
     ? `${node.position_name}${node.position_code ? ` · ${node.position_code}` : ""}`
     : node.is_owner ? "Owner" : "—";
+  const initials = initialsOf(node.first_name, node.last_name, node.email);
+  const windowLabel = RANGE_LABEL[range];
+
+  function handleCardClick(e: React.MouseEvent) {
+    // If the click landed on a Link or a button inside the card, let them
+    // handle their own navigation/action and don't open the panel.
+    const target = e.target as HTMLElement;
+    if (target.closest("a, button")) return;
+    onSelect({
+      agentId:       node.id,
+      agentName:     displayName,
+      agentPosition: position,
+      initials,
+      initialsBg:    v.avatarBg,
+      initialsText:  v.avatarText,
+    });
+  }
 
   return (
     <div className="org-chart-node">
-      {/* Card */}
       <div
+        onClick={handleCardClick}
         className={cn(
-          "org-chart-card relative flex w-[220px] flex-col overflow-hidden rounded-2xl glass-strong ring-1 transition-all duration-200",
+          "org-chart-card relative flex w-[220px] cursor-pointer flex-col overflow-hidden rounded-2xl glass-strong ring-1 transition-all duration-200 hover:ring-2",
           v.ring,
           v.glow,
           node.subtreeHasRisk && "ring-2 ring-orange-400/40",
         )}
       >
-        {/* Tier ribbon — colored band at the very top */}
         <div className={cn("h-[3px] w-full", v.ribbon)} aria-hidden />
 
-        {/* Body */}
         <div className="flex flex-col items-center px-4 pb-3 pt-4">
-          {/* Avatar circle with initials */}
           <div
             className={cn(
               "flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-lg",
@@ -115,13 +143,13 @@ export function AgentOrgCardNode({ node }: Props) {
               v.avatarText,
             )}
           >
-            {initials(node.first_name, node.last_name, node.email)}
+            {initials}
           </div>
 
-          {/* Name + Owner badge */}
           <div className="mt-2.5 flex items-center justify-center gap-1.5">
             <Link
               to={`/agents/${node.id}`}
+              onClick={(e) => e.stopPropagation()}
               className="truncate text-center text-sm font-semibold tracking-tight hover:underline text-shadow-soft max-w-[180px]"
             >
               {displayName}
@@ -133,12 +161,10 @@ export function AgentOrgCardNode({ node }: Props) {
             )}
           </div>
 
-          {/* Position */}
           <p className="mt-0.5 truncate text-center text-[11px] text-muted-foreground max-w-[200px]">
             {position}
           </p>
 
-          {/* Tier label + risk badge */}
           <div className="mt-2 flex items-center gap-1.5">
             <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider", v.iconClass)}>
               <v.Icon className="h-3 w-3" />
@@ -152,22 +178,20 @@ export function AgentOrgCardNode({ node }: Props) {
             )}
           </div>
 
-          {/* Numeric stats — small footer row */}
           <div className="mt-2 flex w-full items-center justify-between border-t border-white/[0.06] pt-2 text-[10px] tabular-nums text-muted-foreground">
-            <span title="Policies written in selected window">
-              <span className="font-semibold text-foreground/80">{node.in_window_count}</span> window
+            <span title={`Policies written ${windowLabel}`}>
+              <span className="font-semibold text-foreground/80">{node.in_window_count}</span> {windowLabel}
             </span>
-            <span title="Total policies all time">
-              <span className="font-semibold text-foreground/80">{node.lifetime_count}</span> all time
+            <span title="Total policies ever written">
+              <span className="font-semibold text-foreground/80">{node.lifetime_count}</span> lifetime
             </span>
           </div>
         </div>
 
-        {/* Expand / collapse button — bottom-right floating chip */}
         {hasChildren && (
           <button
             type="button"
-            onClick={() => setExpanded((e) => !e)}
+            onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }}
             className={cn(
               "absolute -bottom-3 left-1/2 z-10 flex h-6 -translate-x-1/2 items-center gap-1 rounded-full border border-white/10 bg-popover/90 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-xl transition-all hover:bg-white/[0.08] hover:text-foreground",
               expanded && "opacity-80",
@@ -185,11 +209,10 @@ export function AgentOrgCardNode({ node }: Props) {
         )}
       </div>
 
-      {/* Children — only render when expanded */}
       {hasChildren && expanded && (
         <div className="org-chart-children">
           {node.children.map((child) => (
-            <AgentOrgCardNode key={child.id} node={child} />
+            <AgentOrgCardNode key={child.id} node={child} range={range} onSelect={onSelect} />
           ))}
         </div>
       )}
