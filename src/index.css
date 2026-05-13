@@ -163,6 +163,38 @@
     50%  { background-position: 100% 50%; }
     100% { background-position:   0% 50%; }
   }
+
+  /* Right-to-left gold shimmer for accent text in the marketing hero.
+     The background is 2x the text width with a bright highlight band in
+     the middle of a deeper gold gradient. Animating background-position
+     from right (200%) to left (-100%) makes the highlight sweep
+     right-to-left every 12s. Linear easing keeps the motion steady so
+     it reads as ambient brand polish, not a flashy effect. */
+  @keyframes gold-shimmer {
+    from { background-position: 200% 0%; }
+    to   { background-position: -100% 0%; }
+  }
+}
+
+@layer utilities {
+  .gold-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      hsl(30 88% 50%) 0%,
+      hsl(38 92% 60%) 20%,
+      hsl(48 100% 80%) 50%,
+      hsl(38 92% 60%) 80%,
+      hsl(30 88% 50%) 100%
+    );
+    background-size: 200% 100%;
+    background-position: 0% 0%;
+    -webkit-background-clip: text;
+            background-clip: text;
+    color: transparent;
+    animation: gold-shimmer 12s linear infinite;
+    /* Soft outer glow to enhance the perceived depth of the moving highlight. */
+    filter: drop-shadow(0 1px 12px hsl(38 92% 60% / 0.35));
+  }
 }
 
 /* ============================================================================

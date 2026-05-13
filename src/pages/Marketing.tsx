@@ -198,9 +198,7 @@ export function MarketingPage() {
             Run your agency
             <br />
             like it&apos;s {" "}
-            <span className="bg-gradient-to-b from-amber-200 via-primary to-amber-500 bg-clip-text text-transparent">
-              already won.
-            </span>
+            <span className="gold-shimmer">already won.</span>
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-base text-muted-foreground sm:text-lg">
             Track every policy. Auto-route every carrier CSV. See every agent&apos;s rank in real time.
