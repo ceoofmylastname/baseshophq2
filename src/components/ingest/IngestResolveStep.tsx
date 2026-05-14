@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PreviewResult, PreviewRow } from "@/hooks/useIngestPreview";
 import { useAgentsForResolve } from "@/hooks/useAgentsForResolve";
-import { POLICY_STATUS_VALUES } from "@/lib/ingest-row-canonicalize";
+import { POLICY_STATUS_VALUES } from "@/lib/policy-bucket";
 import { Button } from "@/components/ui/button";
 import type { DupAction } from "@/pages/Ingest";
+import { isFlaggedRowResolved, type Override } from "./ingest-resolve-predicate";
 
 type Props = {
   rows: PreviewRow[];
@@ -11,13 +12,6 @@ type Props = {
   dupAction: DupAction;
   onResolved: (rows: PreviewRow[]) => void;
   onBack: () => void;
-};
-
-type Override = {
-  agent_email?: string;       // override for orphan/unmatched
-  product?: string;           // override for product_ambiguous
-  status?: string;            // override for status_unknown
-  skip?: boolean;             // skip this row entirely
 };
 
 export function IngestResolveStep({ rows, results, dupAction, onResolved, onBack }: Props) {
@@ -42,11 +36,47 @@ export function IngestResolveStep({ rows, results, dupAction, onResolved, onBack
     [results, dupAction],
   );
 
+  const validAgentEmails = useMemo(
+    () => new Set(agents.map((a) => a.email).filter((e): e is string => !!e)),
+    [agents],
+  );
+
+  const validStatusSet = useMemo<Set<string>>(
+    () => new Set(POLICY_STATUS_VALUES),
+    [],
+  );
+
+  const resolvedFlaggedCount = useMemo(() => {
+    return flaggedRows.reduce((acc, r) => {
+      const ov = overrides[r.row_index] ?? {};
+      return acc + (isFlaggedRowResolved(r.flags, ov, validAgentEmails, validStatusSet) ? 1 : 0);
+    }, 0);
+  }, [flaggedRows, overrides, validAgentEmails, validStatusSet]);
+
+  const totalRows = rows.length;
+  const readyRows = (totalRows - flaggedRows.length) + resolvedFlaggedCount;
+  const allReady = readyRows === totalRows;
+  const remaining = totalRows - readyRows;
+
   function setOverride(idx: number, patch: Override) {
     setOverrides((prev) => ({ ...prev, [idx]: { ...prev[idx], ...patch } }));
   }
 
+  function skipAllUnresolved() {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      for (const r of flaggedRows) {
+        const ov = next[r.row_index] ?? {};
+        if (!isFlaggedRowResolved(r.flags, ov, validAgentEmails, validStatusSet)) {
+          next[r.row_index] = { ...ov, skip: true };
+        }
+      }
+      return next;
+    });
+  }
+
   function handleApply() {
+    if (!allReady) return; // belt-and-suspenders
     const out: PreviewRow[] = [];
     for (const row of rows) {
       const ov = overrides[row.row_index] ?? {};
@@ -172,11 +202,21 @@ export function IngestResolveStep({ rows, results, dupAction, onResolved, onBack
           })}
         </tbody>
       </table>
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>Back</Button>
-        <Button onClick={handleApply}>
-          Next: apply ({rows.length - Object.values(overrides).filter((o) => o.skip).length} rows)
-        </Button>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onBack}>Back</Button>
+            <Button variant="outline" onClick={skipAllUnresolved}>Skip all unresolved</Button>
+          </div>
+          <Button onClick={handleApply} disabled={!allReady}>
+            Next: apply ({readyRows} of {totalRows} rows ready)
+          </Button>
+        </div>
+        {!allReady && (
+          <p className="text-right text-xs text-muted-foreground">
+            Resolve or skip the remaining {remaining} row{remaining === 1 ? "" : "s"} to continue
+          </p>
+        )}
       </div>
     </div>
   );

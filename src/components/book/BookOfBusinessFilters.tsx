@@ -85,6 +85,13 @@ export function BookOfBusinessFilters({ value, onChange }: Props) {
         />
         Needs Review
       </label>
+      <label className="flex items-center gap-1 text-xs">
+        <input
+          type="checkbox" checked={value.missingProduct}
+          onChange={(e) => onChange({ ...value, missingProduct: e.target.checked })}
+        />
+        Missing product
+      </label>
       <label className="flex items-center gap-1 text-xs text-muted-foreground" title="LOA Only ships when the carrier ingest pipeline populates policies.is_loa_at_writing">
         <input type="checkbox" disabled />
         LOA Only (coming soon)

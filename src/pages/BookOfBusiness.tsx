@@ -18,7 +18,7 @@
 
 import { useMemo, useState } from "react";
 import { Upload, Plus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBookOfBusiness, type Filters, type SortKey } from "@/hooks/useBookOfBusiness";
 import { BookOfBusinessTable } from "@/components/book/BookOfBusinessTable";
@@ -35,12 +35,17 @@ type Tab = "all" | "drafts";
 const DEFAULT_FILTERS: Filters = {
   search: "", status: null, bucket: null, carrierId: null,
   unassignedOnly: false, hasRisk: false, needsReview: false,
+  missingProduct: false,
 };
 
 export function BookOfBusinessPage() {
   const { isOwner } = useAuth();
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>("all");
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...DEFAULT_FILTERS,
+    missingProduct: searchParams.get("filter") === "missing_product",
+  }));
   const [sortKey, setSortKey] = useState<SortKey>("application_date");
   const [sortAsc, setSortAsc] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(() => loadVisibleColumns());

@@ -22,6 +22,7 @@ import {
 import { CarrierFilter } from "@/components/dashboard/CarrierFilter";
 import { BasisToggle } from "@/components/production/BasisToggle";
 import { MissingApplicationDateBanner } from "@/components/production/MissingApplicationDateBanner";
+import { MissingProductBanner } from "@/components/production/MissingProductBanner";
 import { StatusSplitCards } from "@/components/production/StatusSplitCards";
 import { PremiumTrendChart } from "@/components/production/PremiumTrendChart";
 import { AgentTotalsTable } from "@/components/production/AgentTotalsTable";
@@ -71,6 +72,7 @@ export function ProductionPage({ teamView = false }: Props) {
       </div>
 
       <MissingApplicationDateBanner />
+      <MissingProductBanner />
 
       <StatusSplitCards data={data} loading={loading} />
 

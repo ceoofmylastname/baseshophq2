@@ -15,6 +15,7 @@ export function DraftsTab() {
     filters: {
       search: "", status: "Draft", bucket: null, carrierId: null,
       unassignedOnly: false, hasRisk: false, needsReview: false,
+      missingProduct: false,
     },
     sortKey: "application_date",
     sortAsc: false,

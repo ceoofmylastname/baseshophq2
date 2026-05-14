@@ -45,6 +45,7 @@ export type Filters = {
   unassignedOnly: boolean;
   hasRisk: boolean;
   needsReview: boolean;
+  missingProduct: boolean;
 };
 
 const PAGE_SIZE = 50;
@@ -101,6 +102,7 @@ export function useBookOfBusiness(args: {
       if (f.hasRisk) q = q.eq("status", "Potential Lapse");
       if (f.needsReview) q = q.or("agent_id.is.null,product_id.is.null");
     }
+    if (f.missingProduct) q = q.is("product_id", null);
     return q;
   }, [args.filters, args.sortKey, args.sortAsc]);
 
