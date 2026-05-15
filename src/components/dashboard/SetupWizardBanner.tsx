@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { CheckCircle, Circle, Sparkles, ArrowRight } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTenantSetupState, type SetupStepKey } from "@/hooks/useTenantSetupState";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,8 +17,15 @@ const STEP_ACTION: Partial<Record<SetupStepKey, { href: string; label: string }>
 };
 
 export function SetupWizardBanner() {
+  const { isOwner } = useAuth();
   const { steps, completedCount, totalSteps, allComplete, markComplete, loading } = useTenantSetupState();
 
+  // Setup wizard is owner-only. The tenant_setup_status RPC returns the
+  // same agency-wide state for every user, but non-owners can't act on
+  // any of the items (positions ladder, carriers, agent invites, broadcasts
+  // all require is_owner()). Hiding the banner avoids confusion for agents
+  // and reserves the dashboard real estate for their own metrics.
+  if (!isOwner) return null;
   if (loading || allComplete) return null;
 
   const pct = Math.round((completedCount / totalSteps) * 100);
