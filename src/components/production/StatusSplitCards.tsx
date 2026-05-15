@@ -5,24 +5,33 @@
  * and shown without a percentage. Active Agents and Booked Policies are counts,
  * also shown without a percentage.
  *
+ * Phase 13.4: status tiles converted to KpiTile (clickable + hover-preview).
+ * Total Premium (sum of buckets) and Active Agents (agent headcount) stay
+ * as plain MetricCards — they're not single-bucket lists.
+ *
  * Card list per wiki/production-dashboard-page.md:
  *   Total Premium / Submitted / Pending / Active / Potential Lapse / Terminated
  *   / Active Agents / Booked Policies
- *
- * Refs Collected and Refs Sold cards are deferred to Phase 10F.
  */
 
 import { DollarSign, TrendingUp, Clock, CheckCircle, AlertTriangle, XCircle, Users, FileText } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
+import { KpiTile } from "@/components/dashboard/KpiTile";
 import type { ProductionMetrics } from "@/hooks/useProductionMetrics";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 const fmtCount = (n: number) => new Intl.NumberFormat("en-US").format(n);
 
-type Props = { data: ProductionMetrics | null; loading: boolean };
+type Props = {
+  data: ProductionMetrics | null;
+  loading: boolean;
+  startDate: string;
+  endDate: string;
+  carrierId: string | null;
+};
 
-export function StatusSplitCards({ data, loading }: Props) {
+export function StatusSplitCards({ data, loading, startDate, endDate, carrierId }: Props) {
   const total = data?.total_premium ?? 0;
   const pct = (n: number) => (total > 0 ? `${((n / total) * 100).toFixed(1)}%` : "—");
   const moneyWithPct = (n: number) => `${fmtMoney(n)} · ${pct(n)}`;
@@ -34,40 +43,46 @@ export function StatusSplitCards({ data, loading }: Props) {
         icon={<DollarSign className="h-4 w-4" />} loading={loading}
         tooltip="Sum of annual_premium across all in-window policies (per the active basis)."
       />
-      <MetricCard
+      <KpiTile
         label="Submitted" value={moneyWithPct(data?.submitted_premium ?? 0)}
         icon={<TrendingUp className="h-4 w-4 text-sky-300" />} loading={loading}
         tooltip="Annual premium of policies currently in Submitted status."
+        bucket="submitted" startDate={startDate} endDate={endDate} carrierId={carrierId}
       />
-      <MetricCard
+      <KpiTile
         label="Pending" value={moneyWithPct(data?.pending_premium ?? 0)}
         icon={<Clock className="h-4 w-4 text-amber-300" />} loading={loading}
         tooltip="Annual premium of policies currently in Pending status."
+        bucket="pending" startDate={startDate} endDate={endDate} carrierId={carrierId}
       />
-      <MetricCard
+      <KpiTile
         label="Active" value={moneyWithPct(data?.active_premium ?? 0)}
         icon={<CheckCircle className="h-4 w-4 text-emerald-300" />} loading={loading}
         tooltip="Annual premium of policies in Issued or Issue Paid status."
+        bucket="active" startDate={startDate} endDate={endDate} carrierId={carrierId}
       />
-      <MetricCard
+      <KpiTile
         label="Potential Lapse" value={moneyWithPct(data?.lapse_premium ?? 0)}
         icon={<AlertTriangle className="h-4 w-4 text-orange-300" />} loading={loading}
         tooltip="Annual premium of policies flagged Potential Lapse — at-risk."
+        bucket="at_risk" startDate={startDate} endDate={endDate} carrierId={carrierId}
       />
-      <MetricCard
+      <KpiTile
         label="Terminated" value={moneyWithPct(data?.terminated_premium ?? 0)}
         icon={<XCircle className="h-4 w-4 text-red-300" />} loading={loading}
         tooltip="Annual premium of policies in Terminated status."
+        bucket="terminated" startDate={startDate} endDate={endDate} carrierId={carrierId}
       />
       <MetricCard
         label="Active Agents" value={fmtCount(data?.active_agents ?? 0)}
         icon={<Users className="h-4 w-4 text-muted-foreground" />} loading={loading}
         tooltip="Distinct agents who wrote at least one policy in the last 30 days. The billing unit; ignores the page's date range."
       />
-      <MetricCard
+      <KpiTile
         label="Booked Policies" value={fmtCount(data?.booked_policies ?? 0)}
         icon={<FileText className="h-4 w-4 text-primary" />} loading={loading}
         tooltip="Count of policies in Issued or Issue Paid status in the window."
+        bucket="active" startDate={startDate} endDate={endDate} carrierId={carrierId}
       />
     </div>
   );

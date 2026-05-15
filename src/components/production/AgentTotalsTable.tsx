@@ -69,6 +69,12 @@ export function AgentTotalsTable({ startDate, endDate, carrierId, basis }: Props
                       {r.agent_name}
                     </Link>
                     <div className="text-xs text-muted-foreground">{r.email}</div>
+                    <Link
+                      to={`/book-of-business?agent=${r.agent_id}`}
+                      className="text-[11px] text-primary hover:underline"
+                    >
+                      View book →
+                    </Link>
                   </td>
                   <td className="px-4 py-2 text-xs text-muted-foreground">
                     {r.position_code ? `${r.position_code} — ${r.position_name ?? ""}` : "—"}

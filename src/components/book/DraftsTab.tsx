@@ -13,7 +13,7 @@ export function DraftsTab() {
   const { update, submitting } = useUpdatePolicyStatus();
   const { rows, loading, refresh } = useBookOfBusiness({
     filters: {
-      search: "", status: "Draft", bucket: null, carrierId: null,
+      search: "", status: "Draft", bucket: null, carrierId: null, agentId: null,
       unassignedOnly: false, hasRisk: false, needsReview: false,
       missingProduct: false,
     },

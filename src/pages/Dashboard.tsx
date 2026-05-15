@@ -84,7 +84,13 @@ export function DashboardPage() {
         <CarrierFilter value={carrierId} onChange={setCarrierId} />
       </div>
 
-      <MetricsGrid data={data} loading={loading} />
+      <MetricsGrid
+        data={data}
+        loading={loading}
+        startDate={rangeState.range.start}
+        endDate={rangeState.range.end}
+        carrierId={carrierId}
+      />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <LastImportSummary />

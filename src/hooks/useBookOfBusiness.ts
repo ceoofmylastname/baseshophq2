@@ -42,6 +42,7 @@ export type Filters = {
   status: PolicyStatus | null;
   bucket: PolicyBucket | null;
   carrierId: string | null;
+  agentId: string | null;
   unassignedOnly: boolean;
   hasRisk: boolean;
   needsReview: boolean;
@@ -75,8 +76,34 @@ export function useBookOfBusiness(args: {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const buildQuery = useCallback((from: number, to: number) => {
+  /**
+   * Build the Supabase query for a given page. Async because we may need
+   * to resolve `filters.carrierId` (a comp_grid_carriers row) into the
+   * product_id IN (...) list it actually corresponds to. The previous
+   * `q.eq("product_id", f.carrierId)` was a bug — product_id and
+   * carrier_id are different keys. Returns either a configured query
+   * builder or `null` if the carrier resolves to zero products (i.e. the
+   * result is provably empty).
+   */
+  const buildQuery = useCallback(async (from: number, to: number) => {
     const sortCol = SORT_COLUMN_MAP[args.sortKey];
+    const f = args.filters;
+
+    // Resolve carrier → product_ids first (needed for the .in() filter below).
+    let productIds: string[] | null = null;
+    if (f.carrierId && !f.unassignedOnly) {
+      const { data: productRows, error: pErr } = await supabase
+        .from("comp_grid_products")
+        .select("id")
+        .eq("carrier_id", f.carrierId);
+      if (pErr) throw pErr;
+      productIds = (productRows ?? []).map((p) => p.id as string);
+      if (productIds.length === 0) {
+        // Carrier has no products mapped → no policies can match.
+        return null;
+      }
+    }
+
     let q = supabase
       .from("policies")
       .select(`
@@ -88,7 +115,6 @@ export function useBookOfBusiness(args: {
       .order(sortCol, { ascending: args.sortAsc, nullsFirst: false })
       .range(from, to);
 
-    const f = args.filters;
     if (f.unassignedOnly) {
       q = q.is("agent_id", null);
     } else {
@@ -98,7 +124,8 @@ export function useBookOfBusiness(args: {
       }
       if (f.status) q = q.eq("status", f.status);
       if (f.bucket) q = q.in("status", statusesInBucket(f.bucket));
-      if (f.carrierId) q = q.eq("product_id", f.carrierId); // owner picks carrier; we filter on the join below
+      if (f.agentId) q = q.eq("agent_id", f.agentId);
+      if (productIds) q = q.in("product_id", productIds);
       if (f.hasRisk) q = q.eq("status", "Potential Lapse");
       if (f.needsReview) q = q.or("agent_id.is.null,product_id.is.null");
     }
@@ -109,12 +136,25 @@ export function useBookOfBusiness(args: {
   const refresh = useCallback(async () => {
     setLoading(true);
     setPage(0);
-    const { data, error: err } = await buildQuery(0, PAGE_SIZE - 1);
-    setLoading(false);
-    if (err) { setError(err.message); return; }
-    setError(null);
-    setRows(mapRows(data ?? []));
-    setHasMore((data?.length ?? 0) === PAGE_SIZE);
+    try {
+      const q = await buildQuery(0, PAGE_SIZE - 1);
+      if (q === null) {
+        setLoading(false);
+        setError(null);
+        setRows([]);
+        setHasMore(false);
+        return;
+      }
+      const { data, error: err } = await q;
+      setLoading(false);
+      if (err) { setError(err.message); return; }
+      setError(null);
+      setRows(mapRows(data ?? []));
+      setHasMore((data?.length ?? 0) === PAGE_SIZE);
+    } catch (e) {
+      setLoading(false);
+      setError(e instanceof Error ? e.message : "unknown");
+    }
   }, [buildQuery]);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -124,13 +164,24 @@ export function useBookOfBusiness(args: {
     setLoadingMore(true);
     const next = page + 1;
     const from = next * PAGE_SIZE;
-    const { data, error: err } = await buildQuery(from, from + PAGE_SIZE - 1);
-    setLoadingMore(false);
-    if (err) { setError(err.message); return; }
-    const fresh = mapRows(data ?? []);
-    setRows((prev) => [...prev, ...fresh]);
-    setPage(next);
-    setHasMore(fresh.length === PAGE_SIZE);
+    try {
+      const q = await buildQuery(from, from + PAGE_SIZE - 1);
+      if (q === null) {
+        setLoadingMore(false);
+        setHasMore(false);
+        return;
+      }
+      const { data, error: err } = await q;
+      setLoadingMore(false);
+      if (err) { setError(err.message); return; }
+      const fresh = mapRows(data ?? []);
+      setRows((prev) => [...prev, ...fresh]);
+      setPage(next);
+      setHasMore(fresh.length === PAGE_SIZE);
+    } catch (e) {
+      setLoadingMore(false);
+      setError(e instanceof Error ? e.message : "unknown");
+    }
   }
 
   // Realtime: any policies change in this tenant triggers a refresh

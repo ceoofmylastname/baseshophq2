@@ -29,14 +29,20 @@ import { DraftsTab } from "@/components/book/DraftsTab";
 import { PostDealModal } from "@/components/dashboard/PostDealModal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { parseBucketParam, POLICY_STATUS_VALUES, type PolicyStatus } from "@/lib/policy-bucket";
 
 type Tab = "all" | "drafts";
 
 const DEFAULT_FILTERS: Filters = {
-  search: "", status: null, bucket: null, carrierId: null,
+  search: "", status: null, bucket: null, carrierId: null, agentId: null,
   unassignedOnly: false, hasRisk: false, needsReview: false,
   missingProduct: false,
 };
+
+function parseStatusParam(s: string | null): PolicyStatus | null {
+  if (!s) return null;
+  return POLICY_STATUS_VALUES.find((v) => v === s) ?? null;
+}
 
 export function BookOfBusinessPage() {
   const { isOwner } = useAuth();
@@ -44,6 +50,10 @@ export function BookOfBusinessPage() {
   const [tab, setTab] = useState<Tab>("all");
   const [filters, setFilters] = useState<Filters>(() => ({
     ...DEFAULT_FILTERS,
+    bucket:    parseBucketParam(searchParams.get("bucket")),
+    status:    parseStatusParam(searchParams.get("status")),
+    carrierId: searchParams.get("carrier"),
+    agentId:   searchParams.get("agent"),
     missingProduct: searchParams.get("filter") === "missing_product",
   }));
   const [sortKey, setSortKey] = useState<SortKey>("application_date");

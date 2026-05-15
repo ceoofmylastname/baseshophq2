@@ -74,7 +74,13 @@ export function ProductionPage({ teamView = false }: Props) {
       <MissingApplicationDateBanner />
       <MissingProductBanner />
 
-      <StatusSplitCards data={data} loading={loading} />
+      <StatusSplitCards
+        data={data}
+        loading={loading}
+        startDate={rangeState.range.start}
+        endDate={rangeState.range.end}
+        carrierId={carrierId}
+      />
 
       <PremiumTrendChart
         startDate={rangeState.range.start}
