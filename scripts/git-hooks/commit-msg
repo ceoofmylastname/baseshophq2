@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# commit-msg hook — validates that any SHA referenced in a commit message
+# resolves to a real commit in this repo.
+#
+# Catches the fabricated-ship-summary pattern surfaced by the 2026-05-14 audits
+# (commits 6fe8941 + 264a690), where wiki log entries cited SHAs like 8b98693,
+# 12be5a0, d449ebe that did not exist on any branch. A `git rev-parse --verify`
+# check at commit time would have blocked those entries.
+#
+# Bypass legitimately with: git commit --no-verify
+#
+# Activated by `bun run setup-hooks` (which runs `git config core.hooksPath
+# scripts/git-hooks`). See CONTRIBUTING.md.
+
+set -euo pipefail
+
+msg_file="${1:?usage: commit-msg <message-file>}"
+msg="$(cat "$msg_file")"
+
+# Skip merge / fixup / squash commits — these are mechanical and shouldn't be
+# blocked by SHA validation against the message they may auto-generate.
+if [[ "$msg" =~ ^(Merge|fixup!|squash!)[[:space:]] ]]; then
+  exit 0
+fi
+
+# Extract SHA candidates: 7-40 hex chars preceded by a commit-context word
+# (commit / sha / hash / under / in / from / at). Word-boundary anchored so
+# we don't catch hex strings that happen to follow arbitrary text. Strict
+# context anchor minimizes false positives at the cost of accepting some
+# free-floating SHA mentions — that's a deliberate trade-off; missed checks
+# are worse than annoying false positives.
+candidates="$(printf '%s' "$msg" \
+  | grep -oiE '\b(commit|sha|hash|under|from|at)[[:space:]]+[0-9a-f]{7,40}\b' \
+  | grep -oiE '\b[0-9a-f]{7,40}\b' \
+  | sort -u || true)"
+
+if [[ -z "$candidates" ]]; then
+  exit 0
+fi
+
+bad=()
+for sha in $candidates; do
+  # Skip pure-decimal strings that snuck through (e.g. "at 1234567" — a row
+  # count or LOC reference, not a SHA). Real SHAs are nearly always mixed
+  # hex; pure-decimal short strings are almost never commit hashes.
+  if [[ "$sha" =~ ^[0-9]+$ ]] && [[ "${#sha}" -lt 12 ]]; then
+    continue
+  fi
+  if ! git rev-parse --verify --quiet "${sha}^{commit}" >/dev/null 2>&1; then
+    bad+=("$sha")
+  fi
+done
+
+if [[ "${#bad[@]}" -gt 0 ]]; then
+  {
+    echo "ERROR: commit message references SHA(s) that do not exist in this repo:"
+    for sha in "${bad[@]}"; do
+      echo "  - $sha"
+    done
+    echo ""
+    echo "If the SHA is genuinely external (e.g. another repo, upstream), bypass"
+    echo "with: git commit --no-verify"
+  } >&2
+  exit 1
+fi
+
+exit 0

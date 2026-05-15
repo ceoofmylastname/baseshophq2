@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "setup-hooks": "git config core.hooksPath scripts/git-hooks",
     "generate-agora-payload": "bun run scripts/generate-agora-payload.ts"
   },
   "dependencies": {

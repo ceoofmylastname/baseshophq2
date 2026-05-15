@@ -18,12 +18,19 @@
 git clone git@github.com:ceoofmylastname/baseshophq2.git
 cd baseshophq2
 bun install
+bun run setup-hooks     # one-time: points git at scripts/git-hooks/
 supabase start          # 30-60s on first run (image pulls)
 supabase db reset       # applies all migrations + supabase/seed.sql
 cp .env.example .env.local
 # edit .env.local to point at the local stack (URLs printed by `supabase start`)
 bun run dev
 ```
+
+## Git hooks
+
+`bun run setup-hooks` points git at `scripts/git-hooks/` for hooks. Currently installs:
+
+- **`commit-msg`** — validates that any SHA referenced in your commit message (after the words `commit`, `sha`, `hash`, `under`, `from`, `at`) resolves to a real commit in this repo. Catches fabricated ship summaries before they reach the wiki log. Bypass with `git commit --no-verify` when a SHA is intentionally external (e.g. upstream repo, vendor reference).
 
 ## Demo login
 
