@@ -8,7 +8,12 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { MarketingPage } from "@/pages/Marketing";
 import { PricingPage } from "@/pages/Pricing";
 import { LoginPage } from "@/pages/Login";
-import { SignupPage } from "@/pages/Signup";
+// Phase 18 PR 2: /signup now binds to PublicSignupPage (the Stripe-checkout
+// flow). The legacy `pages/Signup.tsx` (password-based, no payment) is left
+// dormant on disk per locked R1; cleanup is a follow-up PR.
+import { PublicSignupPage } from "@/pages/PublicSignup";
+import { SignupSuccessPage } from "@/pages/SignupSuccess";
+import { SignupCancelledPage } from "@/pages/SignupCancelled";
 import { AcceptInvitePage } from "@/pages/AcceptInvite";
 import { ResetPasswordPage } from "@/pages/ResetPassword";
 import { DashboardPage } from "@/pages/Dashboard";
@@ -48,7 +53,9 @@ export default function App() {
           <Route path="/pricing" element={<PricingPage />} />
 
           <Route path="/login"  element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup"           element={<PublicSignupPage />} />
+          <Route path="/signup/success"   element={<SignupSuccessPage />} />
+          <Route path="/signup/cancelled" element={<SignupCancelledPage />} />
 
           {/* Magic-link landing pages. Both require a session (from clicking
               the email link) and have their own redirect-if-not-signed-in
