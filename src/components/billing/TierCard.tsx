@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Sparkles, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CapUsageBar } from "@/components/billing/CapUsageBar";
+import { TierChangeDrawer } from "@/components/billing/TierChangeDrawer";
 import { useBillingPortal } from "@/hooks/useBillingPortal";
 import { cn } from "@/lib/utils";
 import type { BillingState } from "@/lib/billing/helpers";
@@ -9,32 +11,56 @@ import type { BillingState } from "@/lib/billing/helpers";
  * Top tier card: animated gradient rim backdrop + tier name, price, billing
  * cadence, status pills, and CapUsageBar.
  *
- * Pricing copy: PR 3b assumes "/mo" since no annual tier exists in the
- * schema yet. PR 3c is expected to add a `billing_interval` column on
- * tenants and surface annual pricing.
- *   FLAG (per locked plan section 7): the "$X/mo" label is hardcoded; when
- *   billing_interval lands the price suffix should read from that column.
+ * Pricing copy (Phase 17 PR 3c):
+ *   The "$X/mo" or "$X/yr" label is computed from state.tier + state.billingInterval.
+ *   TIER_META carries the canonical pricing from wiki/pricing-and-checkout.md:
+ *     Starter $97/mo or $970/yr
+ *     Growth  $297/mo or $2,970/yr
+ *     Pro     $497/mo or $4,970/yr
+ *     Enterprise Custom (no annual variant)
  *
- * The "Open billing portal" CTA is enabled only when the tenant has a Stripe
- * customer on file (i.e., they have run checkout at least once). Starter
- * tenants who haven't subscribed see a disabled-state explanation instead.
+ * CTAs:
+ *   - "Change tier" opens the TierChangeDrawer (PR 3c).
+ *   - "Open billing portal" routes to Stripe-hosted portal. Enabled only when
+ *     the tenant has a Stripe customer on file (post-checkout).
  */
 
-const TIER_META = {
-  starter:    { label: "Starter",    price: "$0",   accent: "text-foreground" },
-  growth:     { label: "Growth",     price: "$49",  accent: "text-primary"    },
-  pro:        { label: "Pro",        price: "$149", accent: "text-primary"    },
-  enterprise: { label: "Enterprise", price: "Custom", accent: "text-primary"  },
-} as const;
+type TierPriceCopy = {
+  label: string;
+  monthly: string;
+  annual: string;
+  accent: string;
+};
+
+const TIER_META: Record<BillingState["tier"], TierPriceCopy> = {
+  starter:    { label: "Starter",    monthly: "$97",     annual: "$970",      accent: "text-foreground" },
+  growth:     { label: "Growth",     monthly: "$297",    annual: "$2,970",    accent: "text-primary"    },
+  pro:        { label: "Pro",        monthly: "$497",    annual: "$4,970",    accent: "text-primary"    },
+  enterprise: { label: "Enterprise", monthly: "Custom",  annual: "Custom",    accent: "text-primary"    },
+};
 
 function formatPeriodEnd(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function TierCard({ state }: { state: BillingState }) {
+type Props = {
+  state: BillingState;
+  onMutated?: () => void;
+};
+
+export function TierCard({ state, onMutated }: Props) {
   const meta = TIER_META[state.tier];
   const { openPortal, opening } = useBillingPortal();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Enterprise has no annual variant; always show its monthly column.
+  // For Starter / Growth / Pro: pick the column from billingInterval and
+  // append /yr or /mo accordingly.
+  const isEnterprise = state.tier === "enterprise";
+  const useAnnual = !isEnterprise && state.billingInterval === "annual";
+  const priceText = useAnnual ? meta.annual : meta.monthly;
+  const priceSuffix = isEnterprise ? "" : useAnnual ? "/yr" : "/mo";
 
   return (
     <section className="relative overflow-hidden rounded-2xl glass p-6">
@@ -51,10 +77,8 @@ export function TierCard({ state }: { state: BillingState }) {
               {meta.label}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              <span className="text-foreground text-shadow-soft">{meta.price}</span>
-              {state.tier !== "enterprise" && state.tier !== "starter" && (
-                <span className="ml-1">/mo</span>
-              )}
+              <span className="text-foreground text-shadow-soft">{priceText}</span>
+              {priceSuffix && <span className="ml-1">{priceSuffix}</span>}
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -79,6 +103,13 @@ export function TierCard({ state }: { state: BillingState }) {
           </div>
 
           <div className="flex flex-col items-stretch gap-2 md:items-end">
+            <Button
+              size="sm"
+              onClick={() => setDrawerOpen(true)}
+              disabled={!state.hasStripeCustomer}
+            >
+              Change tier
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -118,6 +149,13 @@ export function TierCard({ state }: { state: BillingState }) {
           )}
         </div>
       </div>
+
+      <TierChangeDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        state={state}
+        onSuccess={() => onMutated?.()}
+      />
     </section>
   );
 }

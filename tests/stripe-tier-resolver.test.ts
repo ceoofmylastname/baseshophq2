@@ -26,6 +26,10 @@ const FULL_CATALOG: PriceIdCatalog = {
   pro:                           "price_pro",
   enterprise_active_agent_unit:  "price_enterprise_unit",
   white_label_addon:             "price_white_label",
+  starter_annual:                "price_starter_annual",
+  growth_annual:                 "price_growth_annual",
+  pro_annual:                    "price_pro_annual",
+  white_label_addon_annual:      "price_white_label_annual",
 };
 
 describe("single base tier match", () => {
@@ -202,5 +206,99 @@ describe("enterprise usage item id is exposed only for enterprise", () => {
     );
     expect(r.tier).toBe("enterprise");
     expect(r.enterpriseUsageItemId).toBe("si_xyz");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 17 PR 3c — annual variants + mixed_intervals
+// ---------------------------------------------------------------------------
+
+describe("annual base tiers (PR 3c)", () => {
+  test.each([
+    ["starter", "price_starter_annual"],
+    ["growth",  "price_growth_annual"],
+    ["pro",     "price_pro_annual"],
+  ])("%s annual alone resolves to tier + interval=annual", (expectedTier, priceId) => {
+    const r = resolveTierFromSubscriptionItems(
+      [{ id: "si_a", price: { id: priceId } }],
+      FULL_CATALOG,
+    );
+    expect(r.tier).toBe(expectedTier as never);
+    expect(r.interval).toBe("annual");
+    expect(r.whiteLabel).toBe(false);
+    expect(r.errors).toEqual([]);
+  });
+
+  test("growth annual + WL annual resolves cleanly with interval=annual", () => {
+    const r = resolveTierFromSubscriptionItems(
+      [
+        { id: "si_base",  price: { id: "price_growth_annual" } },
+        { id: "si_addon", price: { id: "price_white_label_annual" } },
+      ],
+      FULL_CATALOG,
+    );
+    expect(r.tier).toBe("growth");
+    expect(r.interval).toBe("annual");
+    expect(r.whiteLabel).toBe(true);
+    expect(r.whiteLabelAddonItemId).toBe("si_addon");
+    expect(r.errors).toEqual([]);
+  });
+
+  test("monthly tier alone has interval=monthly", () => {
+    const r = resolveTierFromSubscriptionItems(
+      [{ id: "si_a", price: { id: "price_growth" } }],
+      FULL_CATALOG,
+    );
+    expect(r.interval).toBe("monthly");
+  });
+
+  test("starter annual + WL annual still rejected (white_label_on_starter)", () => {
+    const r = resolveTierFromSubscriptionItems(
+      [
+        { id: "si_base",  price: { id: "price_starter_annual" } },
+        { id: "si_addon", price: { id: "price_white_label_annual" } },
+      ],
+      FULL_CATALOG,
+    );
+    expect(r.tier).toBe("starter");
+    expect(r.interval).toBe("annual");
+    expect(r.whiteLabel).toBe(true);
+    expect(r.errors.some(e => e.code === "white_label_on_starter")).toBe(true);
+  });
+});
+
+describe("mixed_intervals (PR 3c)", () => {
+  test("subscription with both monthly + annual line items → mixed_intervals error", () => {
+    const r = resolveTierFromSubscriptionItems(
+      [
+        { id: "si_base", price: { id: "price_growth_annual" } },
+        { id: "si_wl",   price: { id: "price_white_label" } }, // monthly WL with annual base
+      ],
+      FULL_CATALOG,
+    );
+    expect(r.errors.some(e => e.code === "mixed_intervals")).toBe(true);
+  });
+
+  test("two monthly items (base + WL) → no mixed_intervals error", () => {
+    const r = resolveTierFromSubscriptionItems(
+      [
+        { id: "si_base", price: { id: "price_growth" } },
+        { id: "si_wl",   price: { id: "price_white_label" } },
+      ],
+      FULL_CATALOG,
+    );
+    expect(r.errors.some(e => e.code === "mixed_intervals")).toBe(false);
+  });
+
+  test("two annual items → no mixed_intervals error, interval=annual", () => {
+    const r = resolveTierFromSubscriptionItems(
+      [
+        { id: "si_base", price: { id: "price_pro_annual" } },
+        { id: "si_wl",   price: { id: "price_white_label_annual" } },
+      ],
+      FULL_CATALOG,
+    );
+    expect(r.errors.some(e => e.code === "mixed_intervals")).toBe(false);
+    expect(r.interval).toBe("annual");
   });
 });

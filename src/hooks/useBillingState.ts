@@ -41,7 +41,7 @@ export function useBillingState() {
       supabase
         .from("tenants")
         .select(
-          "id, current_plan_tier, white_label_addon_active, agent_cap, billing_status, is_in_trial, trial_ends_at, current_period_end, past_due_since, suspended_at, stripe_customer_id",
+          "id, current_plan_tier, white_label_addon_active, agent_cap, billing_status, is_in_trial, trial_ends_at, current_period_end, past_due_since, suspended_at, stripe_customer_id, billing_interval",
         )
         .eq("id", tenant.id)
         .maybeSingle(),

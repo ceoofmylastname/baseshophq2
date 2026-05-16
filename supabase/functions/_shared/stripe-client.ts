@@ -96,16 +96,34 @@ export async function getStripeClient(): Promise<Stripe> {
 /**
  * One round of Vault reads to assemble the full price ID catalog. Each name
  * is fetched independently so a missing entry leaves the others usable.
+ *
+ * Phase 17 PR 3c: now reads 9 entries — adds the four annual variants
+ * (starter_annual, growth_annual, pro_annual, white_label_addon_annual).
+ * Enterprise has no annual variant.
  */
 export async function loadPriceIdCatalog(
   admin: SupabaseClient
 ): Promise<PriceIdCatalog> {
-  const [starter, growth, pro, enterpriseUnit, whiteLabelAddon] = await Promise.all([
+  const [
+    starter,
+    growth,
+    pro,
+    enterpriseUnit,
+    whiteLabelAddon,
+    starterAnnual,
+    growthAnnual,
+    proAnnual,
+    whiteLabelAddonAnnual,
+  ] = await Promise.all([
     getVaultSecret(admin, "stripe_price_starter"),
     getVaultSecret(admin, "stripe_price_growth"),
     getVaultSecret(admin, "stripe_price_pro"),
     getVaultSecret(admin, "stripe_price_enterprise_active_agent_unit"),
     getVaultSecret(admin, "stripe_price_white_label_addon"),
+    getVaultSecret(admin, "stripe_price_starter_annual"),
+    getVaultSecret(admin, "stripe_price_growth_annual"),
+    getVaultSecret(admin, "stripe_price_pro_annual"),
+    getVaultSecret(admin, "stripe_price_white_label_addon_annual"),
   ]);
 
   return {
@@ -114,6 +132,10 @@ export async function loadPriceIdCatalog(
     pro,
     enterprise_active_agent_unit: enterpriseUnit,
     white_label_addon: whiteLabelAddon,
+    starter_annual: starterAnnual,
+    growth_annual: growthAnnual,
+    pro_annual: proAnnual,
+    white_label_addon_annual: whiteLabelAddonAnnual,
   };
 }
 

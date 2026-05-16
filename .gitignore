@@ -40,3 +40,6 @@ pnpm-debug.log*
 # Misc
 *.local
 *.code-workspace
+
+# Claude Code working directory (agent state, local settings)
+.claude/

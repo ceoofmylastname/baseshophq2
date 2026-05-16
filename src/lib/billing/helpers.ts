@@ -10,6 +10,7 @@
 
 export type BillingStatus = "active" | "past_due" | "suspended" | "cancelled";
 export type PlanTier = "starter" | "growth" | "pro" | "enterprise";
+export type BillingInterval = "monthly" | "annual";
 
 export type BillingSnapshot = {
   id: string;
@@ -33,6 +34,8 @@ export type TenantBillingRow = {
   past_due_since: string | null;
   suspended_at: string | null;
   stripe_customer_id: string | null;
+  /** Phase 17 PR 3c. Defaults to 'monthly' for any tenant predating PR 3c. */
+  billing_interval: BillingInterval;
 };
 
 export type BillingState = {
@@ -49,6 +52,8 @@ export type BillingState = {
   suspendedAt: string | null;
   hasStripeCustomer: boolean;
   snapshots: BillingSnapshot[];
+  /** Phase 17 PR 3c. */
+  billingInterval: BillingInterval;
 };
 
 /**
@@ -217,5 +222,6 @@ export function composeBillingState(args: {
     suspendedAt: tenantRow.suspended_at,
     hasStripeCustomer: tenantRow.stripe_customer_id !== null,
     snapshots,
+    billingInterval: tenantRow.billing_interval ?? "monthly",
   };
 }

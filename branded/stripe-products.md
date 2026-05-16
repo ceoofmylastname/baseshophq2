@@ -19,6 +19,10 @@ Five recurring products + one usage-priced unit + one add-on per domain. All mon
 | Enterprise (per-agent unit) | Base Shop HQ — Enterprise (Active Agent) | `$25.00 / mo / unit` (default — negotiable per contract) | Usage-based recurring (Stripe metered) | 50+ agents. Unit = active agent for the prior 30 days. Reported monthly via `/v1/subscription_items/{id}/usage_records` from the snapshot job (PR 2). |
 | White-Label Add-On | Base Shop HQ — White-Label Add-On | `$97.00 / mo` | Flat recurring | Attached to Growth, Pro, or Enterprise subscriptions only. Database CHECK blocks it on Starter. |
 | Additional Vanity Domain | Base Shop HQ — Additional Vanity Domain | `$25.00 / mo / domain` | Flat recurring, per quantity | Only attachable when White-Label Add-On is active. One vanity domain is included with the add-on; additional domains bill per this line item. |
+| Starter (annual) | Base Shop HQ — Starter (Annual) | `$970.00 / yr` | Flat recurring | Annual variant of Starter. Two months free vs monthly. Same 3-agent cap. |
+| Growth (annual) | Base Shop HQ — Growth (Annual) | `$2,970.00 / yr` | Flat recurring | Annual variant of Growth. Two months free vs monthly. |
+| Pro (annual) | Base Shop HQ — Pro (Annual) | `$4,970.00 / yr` | Flat recurring | Annual variant of Pro. Two months free vs monthly. |
+| White-Label Add-On (annual) | Base Shop HQ — White-Label Add-On (Annual) | `$970.00 / yr` | Flat recurring | Annual variant of the white-label add-on. Two months free vs monthly. |
 
 ### Setup checklist (Stripe Dashboard)
 
@@ -67,6 +71,10 @@ The platform reads these at runtime via `vault.decrypted_secrets`. Set them via 
 | `stripe_price_white_label_addon` | Price ID for the White-Label Add-On | Attached as a second line item on Growth/Pro/Enterprise checkouts when the toggle is on; can also be added/removed via the in-app Billing page. |
 | `stripe_price_additional_vanity_domain` | Price ID for additional vanity domains beyond the first | Quantity-based line item, incremented when an agency provisions a second (or third…) custom domain. |
 | `active_agent_snapshot_secret` | Shared secret for pg_cron → Edge Function authentication, 32-byte random hex (generate with `openssl rand -hex 32`) | The monthly `pg_cron` job sends this in `X-Snapshot-Secret`; the `active-agent-snapshot` Edge Function reads it from Vault and compares. |
+| `stripe_price_starter_annual` | Price ID for the Starter annual | Used by `create-checkout-session` and `billing-mutate` (PR 3c) when `interval='annual'` and tier='starter'. |
+| `stripe_price_growth_annual` | Price ID for the Growth annual | Same as above for Growth. |
+| `stripe_price_pro_annual` | Price ID for the Pro annual | Same as above for Pro. |
+| `stripe_price_white_label_addon_annual` | Price ID for the White-Label Add-On annual | Attached as a second line item on annual Growth/Pro/Enterprise subscriptions when the WL toggle is on. |
 
 ### Verifying Vault is populated (from psql)
 
@@ -80,11 +88,30 @@ SELECT name FROM vault.decrypted_secrets WHERE name IN (
   'stripe_price_enterprise_active_agent_unit',
   'stripe_price_white_label_addon',
   'stripe_price_additional_vanity_domain',
-  'active_agent_snapshot_secret'
+  'active_agent_snapshot_secret',
+  'stripe_price_starter_annual',
+  'stripe_price_growth_annual',
+  'stripe_price_pro_annual',
+  'stripe_price_white_label_addon_annual'
 ) ORDER BY name;
 ```
 
-Should return all 9 names. If any are missing, PR 2 code paths that need them will fail explicitly at the call site rather than silently — the Edge Function checks each lookup and returns a structured error if the secret is absent.
+Should return all 13 names. If any are missing, code paths that need them fail explicitly at the call site rather than silently — the Edge Function checks each lookup and returns a structured error if the secret is absent.
+
+---
+
+## Annual pricing math
+
+The annual prices use a 2-months-free convention vs the monthly price:
+
+| Tier | Monthly | Annual | Annual = (Monthly × 10) |
+|---|---|---|---|
+| Starter | `$97.00 / mo` | `$970.00 / yr` | `$97 × 10 = $970` |
+| Growth  | `$297.00 / mo` | `$2,970.00 / yr` | `$297 × 10 = $2,970` |
+| Pro     | `$497.00 / mo` | `$4,970.00 / yr` | `$497 × 10 = $4,970` |
+| White-Label Add-On | `$97.00 / mo` | `$970.00 / yr` | `$97 × 10 = $970` |
+
+Enterprise is metered (active-agent), so no annual variant exists — its catalog row stays monthly only. The validation chain (`tier-resolver` → `create-checkout-session` → `billing-mutate`) rejects `tier='enterprise' && interval='annual'` with `enterprise_annual_not_supported`.
 
 ---
 

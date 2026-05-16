@@ -34,6 +34,8 @@ import {
 type CheckoutBody = {
   tier: "starter" | "growth" | "pro" | "enterprise";
   whiteLabel?: boolean;
+  /** Phase 17 PR 3c: 'monthly' (default) or 'annual'. Enterprise must be monthly. */
+  interval?: "monthly" | "annual";
 };
 
 Deno.serve(async (req: Request) => {
@@ -112,6 +114,16 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // Phase 17 PR 3c: validate optional interval. Enterprise has no annual variant.
+  const interval: "monthly" | "annual" = body.interval === "annual" ? "annual" : "monthly";
+  if (interval === "annual" && body.tier === "enterprise") {
+    return jsonResponse(400, {
+      ok: false,
+      error_code: "enterprise_annual_not_supported",
+      error_message: "Enterprise is not available on the annual interval",
+    });
+  }
+
   // ---- Load tenant + ensure we have a Stripe customer ----
   const { data: tenantRow, error: tenantErr } = await admin
     .from("tenants")
@@ -126,19 +138,30 @@ Deno.serve(async (req: Request) => {
   }
 
   // ---- Resolve price IDs from Vault ----
+  // PR 3c: pick monthly vs annual variant by `interval`. Enterprise has no
+  // annual variant (rejected earlier); Starter/Growth/Pro use the `_annual`
+  // suffix on the Vault key.
   let priceBase: string | null;
   let priceWhiteLabel: string | null;
   try {
     if (body.tier === "starter") {
-      priceBase = await getVaultSecret(admin, "stripe_price_starter");
+      priceBase = interval === "annual"
+        ? await getVaultSecret(admin, "stripe_price_starter_annual")
+        : await getVaultSecret(admin, "stripe_price_starter");
     } else if (body.tier === "growth") {
-      priceBase = await getVaultSecret(admin, "stripe_price_growth");
+      priceBase = interval === "annual"
+        ? await getVaultSecret(admin, "stripe_price_growth_annual")
+        : await getVaultSecret(admin, "stripe_price_growth");
     } else {
       // pro
-      priceBase = await getVaultSecret(admin, "stripe_price_pro");
+      priceBase = interval === "annual"
+        ? await getVaultSecret(admin, "stripe_price_pro_annual")
+        : await getVaultSecret(admin, "stripe_price_pro");
     }
     priceWhiteLabel = whiteLabel
-      ? await getVaultSecret(admin, "stripe_price_white_label_addon")
+      ? (interval === "annual"
+          ? await getVaultSecret(admin, "stripe_price_white_label_addon_annual")
+          : await getVaultSecret(admin, "stripe_price_white_label_addon"))
       : null;
   } catch (e) {
     return jsonResponse(500, {
@@ -234,12 +257,14 @@ Deno.serve(async (req: Request) => {
           tenant_id: tenantId,
           tier: body.tier,
           white_label: whiteLabel ? "true" : "false",
+          interval,
         },
       },
       metadata: {
         tenant_id: tenantId,
         tier: body.tier,
         white_label: whiteLabel ? "true" : "false",
+        interval,
       },
     });
 

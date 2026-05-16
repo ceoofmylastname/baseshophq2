@@ -140,6 +140,7 @@ describe("composeBillingState", () => {
       past_due_since: null,
       suspended_at: null,
       stripe_customer_id: "cus_test_42",
+      billing_interval: "monthly",
     };
     const snapshots: BillingSnapshot[] = [
       {
@@ -181,6 +182,7 @@ describe("composeBillingState", () => {
       past_due_since: null,
       suspended_at: null,
       stripe_customer_id: null,
+      billing_interval: "monthly",
     };
     const out = composeBillingState({ tenantRow, snapshots: [], agentCount: 5 });
     expect(out.usagePct).toBe(0);
@@ -200,6 +202,7 @@ describe("composeBillingState", () => {
       past_due_since: null,
       suspended_at: null,
       stripe_customer_id: "cus_x",
+      billing_interval: "monthly",
     };
     const out = composeBillingState({ tenantRow, snapshots: [], agentCount: 12 });
     expect(out.usagePct).toBe(120);

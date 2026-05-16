@@ -313,6 +313,7 @@ async function deriveTierPatch(
   current_plan_tier: string;
   white_label_addon_active: boolean;
   stripe_subscription_id: string;
+  billing_interval: string;
 }>> {
   // Only subscription events carry items. checkout.session and invoice
   // events don't.
@@ -336,10 +337,15 @@ async function deriveTierPatch(
     catalog,
   );
 
-  if (resolution.errors.length > 0) {
-    // Surface the error in logs; do NOT update tier on a malformed
-    // subscription — that could clobber legit state. The caller still
-    // writes billing_status from statePatch.
+  // Surface mixed_intervals as a soft error: log + skip billing_interval
+  // write but still keep tier + WL writes if they're otherwise clean. The
+  // resolver returns tier/wl/interval even when mixed_intervals fires; we
+  // explicitly do NOT trust the interval discriminator in that case.
+  const hasMixedIntervals = resolution.errors.some(e => e.code === "mixed_intervals");
+  // All non-mixed errors abort the patch (malformed sub).
+  const blockingErrors = resolution.errors.filter(e => e.code !== "mixed_intervals");
+
+  if (blockingErrors.length > 0) {
     console.error(JSON.stringify({
       msg: "stripe_webhook_tier_resolution_failed",
       event_id: event.id,
@@ -349,10 +355,20 @@ async function deriveTierPatch(
     return { stripe_subscription_id: sub.id };
   }
 
+  if (hasMixedIntervals) {
+    console.warn(JSON.stringify({
+      msg: "stripe_webhook_mixed_intervals",
+      event_id: event.id,
+      event_type: event.type,
+      detail: "subscription has both monthly and annual line items; skipping billing_interval write",
+    }));
+  }
+
   const patch: Partial<{
     current_plan_tier: string;
     white_label_addon_active: boolean;
     stripe_subscription_id: string;
+    billing_interval: string;
   }> = {
     stripe_subscription_id: sub.id,
   };
@@ -360,6 +376,10 @@ async function deriveTierPatch(
     patch.current_plan_tier = resolution.tier;
   }
   patch.white_label_addon_active = resolution.whiteLabel;
+  // PR 3c: persist billing_interval only when the resolver is confident.
+  if (!hasMixedIntervals) {
+    patch.billing_interval = resolution.interval;
+  }
   return patch;
 }
 
