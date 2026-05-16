@@ -326,8 +326,8 @@ describe("happy path", () => {
   });
 });
 
-describe("RPC failure", () => {
-  test("RPC error → 500 stripe_call_failed", async () => {
+describe("DB + Stripe failure paths", () => {
+  test("auth_user_exists_by_email RPC error → 500 database_error", async () => {
     const state = freshState();
     const brokenAdmin: SignupCheckoutAdminLike = {
       async rpc() {
@@ -353,7 +353,43 @@ describe("RPC failure", () => {
       body: baseBody(),
     });
     expect(out.status).toBe(500);
-    if (out.status === 500) expect(out.body.error_code).toBe("stripe_call_failed");
+    if (out.status === 500) expect(out.body.error_code).toBe("database_error");
+  });
+
+  test("tenants.slug lookup error → 500 database_error", async () => {
+    // Admin RPC succeeds (email not registered), but the slug SELECT fails.
+    const state = freshState();
+    const brokenSlugAdmin: SignupCheckoutAdminLike = {
+      async rpc(fn: string) {
+        if (fn === "auth_user_exists_by_email") {
+          return { data: false, error: null };
+        }
+        return { data: null, error: null };
+      },
+      from() {
+        return {
+          select() {
+            return {
+              async eq() {
+                return { data: null, error: { message: "slug select boom" } };
+              },
+            };
+          },
+        };
+      },
+    };
+    const out = await handleSignupCheckoutRequest({
+      admin: brokenSlugAdmin,
+      stripe: makeMockStripe(state),
+      catalog: CATALOG,
+      publicSiteUrl: "https://baseshophq.com",
+      body: baseBody(),
+    });
+    expect(out.status).toBe(500);
+    if (out.status === 500) {
+      expect(out.body.error_code).toBe("database_error");
+      expect(out.body.error_message).toContain("tenants.slug lookup failed");
+    }
   });
 
   test("Stripe SDK throws → 500 stripe_call_failed", async () => {

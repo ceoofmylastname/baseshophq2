@@ -1,9 +1,13 @@
 /**
- * Phase 18 PR 2 — /signup/success
+ * Phase 18 PR 2 + PR 3 — /signup/success
  *
- * Reads ?session_id= for telemetry-only purposes (we do not poll). Per locked
- * D6+D7, email source is sessionStorage ONLY. If absent, fall back to generic
- * copy. No data fetch; no signup-checkout-status function (deferred to PR 3).
+ * Reads ?session_id= and renders a personalized "We sent a magic link to
+ * <email>" line. Email-source preference order:
+ *   1. sessionStorage `bsq_signup_email` (set by /signup before redirecting
+ *      to Stripe — covers the same-tab same-device path).
+ *   2. PR 3 fallback: fetch /functions/v1/signup-checkout-status?session_id=…
+ *      (covers cross-device + cleared-storage cases). Silent on failure.
+ *   3. Generic "Check your inbox..." copy.
  *
  * Sole CTA: "I didn't receive the email" → ContactSupportModal.
  *
@@ -16,11 +20,13 @@ import { CheckCircle2, MailCheck } from "lucide-react";
 import { BaseshopLogo } from "@/components/marketing/BaseshopLogo";
 import { Button } from "@/components/ui/button";
 import { ContactSupportModal } from "@/components/signup/ContactSupportModal";
+import { supabase } from "@/lib/supabase-browser";
 
 export function SignupSuccessPage() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id"); // surfaced in markup only as a debug attribute
   const [supportOpen, setSupportOpen] = useState(false);
+  const [resolvedEmail, setResolvedEmail] = useState<string>("");
 
   const stashedEmail = useMemo(() => {
     try {
@@ -30,8 +36,36 @@ export function SignupSuccessPage() {
     }
   }, []);
 
-  // Light entrance pulse on the icon
-  useEffect(() => { /* no-op, here in case future PRs add a confetti trigger */ }, []);
+  // Phase 18 PR 3: when sessionStorage is empty but the URL carries
+  // ?session_id=cs_..., fetch the customer_email from the
+  // signup-checkout-status function and upgrade the copy in place. All
+  // failures are silent — the magic link gets delivered by Resend regardless.
+  useEffect(() => {
+    if (stashedEmail) return;
+    if (!sessionId || !sessionId.startsWith("cs_")) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("signup-checkout-status", {
+          method: "POST",
+          body: { session_id: sessionId },
+        });
+        if (cancelled) return;
+        if (error) return;
+        const email = (data as { ok?: boolean; customer_email?: string | null } | null)?.customer_email;
+        if (email && typeof email === "string") {
+          setResolvedEmail(email);
+        }
+      } catch {
+        // Swallow — fallback copy is rendered already.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [stashedEmail, sessionId]);
+
+  const displayEmail = stashedEmail || resolvedEmail;
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
@@ -60,10 +94,10 @@ export function SignupSuccessPage() {
           </h1>
 
           <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground sm:text-base">
-            {stashedEmail ? (
+            {displayEmail ? (
               <>
                 We sent a magic link to{" "}
-                <span className="font-medium text-foreground">{stashedEmail}</span>.
+                <span className="font-medium text-foreground">{displayEmail}</span>.
                 Open it to enter your new dashboard.
               </>
             ) : (
@@ -88,7 +122,7 @@ export function SignupSuccessPage() {
       <ContactSupportModal
         open={supportOpen}
         onClose={() => setSupportOpen(false)}
-        defaultEmail={stashedEmail}
+        defaultEmail={displayEmail}
       />
     </div>
   );

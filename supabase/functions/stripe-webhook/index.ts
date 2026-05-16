@@ -60,6 +60,12 @@ import {
   handleAuditInsert,
   markAuditProcessed,
 } from "../_shared/payment-handlers.ts";
+import {
+  handleNewSignupProvisioning,
+  type ProvisioningAdminLike,
+  type ProvisioningStripeLike,
+  type ProvisioningEvent,
+} from "../_shared/new-signup-provisioning.ts";
 
 const HANDLED_EVENTS = new Set<string>([
   "checkout.session.completed",
@@ -155,6 +161,24 @@ Deno.serve(async (req: Request) => {
     // Stamp processed_at so a redelivery doesn't re-enter this branch.
     await markAuditProcessed(admin as unknown as Parameters<typeof markAuditProcessed>[0], event.id, null);
     return jsonResponse(200, { ok: true, ignored: true, event_type: event.type });
+  }
+
+  // Phase 18 PR 3 branch point: checkout.session.completed sessions tagged
+  // with metadata.flow='new_signup' run a different provisioning path (create
+  // auth.users + agencies + tenants + agents + magic link). Sessions with no
+  // flow key, or flow='existing_tenant_upgrade', fall through to the Phase 17
+  // resolveTenantId-based path below (back-compat for pre-Phase-18 sessions).
+  if (event.type === "checkout.session.completed") {
+    const sessionFlow = (event.data.object as { metadata?: { flow?: string } } | undefined)?.metadata?.flow;
+    if (sessionFlow === "new_signup") {
+      const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? "https://baseshophq.com";
+      return await handleNewSignupProvisioning({
+        admin: admin as unknown as ProvisioningAdminLike,
+        stripe: stripe as unknown as ProvisioningStripeLike,
+        event: event as unknown as ProvisioningEvent,
+        publicSiteUrl,
+      });
+    }
   }
 
   try {

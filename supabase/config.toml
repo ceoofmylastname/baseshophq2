@@ -380,6 +380,14 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Phase 18 PR 3: signup-checkout-status is a public read-only lookup that
+# returns customer_email + status for a Stripe Checkout Session ID. /signup
+# /success calls this when sessionStorage is empty (cross-device flow). The
+# Stripe session_id is a 28+ char opaque token, so there's no auth value in
+# blocking unauthenticated calls.
+[functions.signup-checkout-status]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

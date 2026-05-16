@@ -10,13 +10,14 @@
  *   { tier, interval, whiteLabel, agencyName, ownerEmail, ownerFirstName,
  *     ownerLastName, timeZone, slugHint? }
  *
- * Error codes returned by this handler (6 total):
+ * Error codes returned by this handler (7 total):
  *   - validation_failed
  *   - enterprise_not_self_serve
  *   - starter_white_label_combination
  *   - email_already_registered  (with hint: "Already have an account? Sign in instead.")
  *   - stripe_init_failed
  *   - stripe_call_failed
+ *   - database_error            (Phase 18 PR 3 backport — DB-layer failures)
  *
  * Pattern matches billing-mutate-handler.ts. The thin Deno wrapper does env
  * reads + dependency construction and is not directly tested.
@@ -117,7 +118,8 @@ export type SignupCheckoutResult =
           | "starter_white_label_combination"
           | "email_already_registered"
           | "stripe_init_failed"
-          | "stripe_call_failed";
+          | "stripe_call_failed"
+          | "database_error";
         error_message: string;
         hint?: string;
       };
@@ -207,7 +209,7 @@ export async function handleSignupCheckoutRequest(args: {
       status: 500,
       body: {
         ok: false,
-        error_code: "stripe_call_failed",
+        error_code: "database_error",
         error_message: `auth_user_exists_by_email RPC failed: ${existsErr.message}`,
       },
     };
@@ -237,7 +239,7 @@ export async function handleSignupCheckoutRequest(args: {
         status: 500,
         body: {
           ok: false,
-          error_code: "stripe_call_failed",
+          error_code: "database_error",
           error_message: `tenants.slug lookup failed: ${slugErr.message}`,
         },
       };
