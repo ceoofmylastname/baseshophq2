@@ -5,6 +5,7 @@ import { CapUsageBar } from "@/components/billing/CapUsageBar";
 import { TierChangeDrawer } from "@/components/billing/TierChangeDrawer";
 import { useBillingPortal } from "@/hooks/useBillingPortal";
 import { cn } from "@/lib/utils";
+import { TIER_CONFIG } from "@/lib/pricing/pricing-math";
 import type { BillingState } from "@/lib/billing/helpers";
 
 /**
@@ -13,31 +14,16 @@ import type { BillingState } from "@/lib/billing/helpers";
  *
  * Pricing copy (Phase 17 PR 3c):
  *   The "$X/mo" or "$X/yr" label is computed from state.tier + state.billingInterval.
- *   TIER_META carries the canonical pricing from wiki/pricing-and-checkout.md:
- *     Starter $97/mo or $970/yr
- *     Growth  $297/mo or $2,970/yr
- *     Pro     $497/mo or $4,970/yr
- *     Enterprise Custom (no annual variant)
+ *   Tier metadata (label / monthly / annual / accent) comes from the shared
+ *   TIER_CONFIG in src/lib/pricing/pricing-math.ts (Phase 18 PR 1 — same
+ *   shape is consumed by the public /pricing page). Canonical pricing comes
+ *   from wiki/pricing-and-checkout.md.
  *
  * CTAs:
  *   - "Change tier" opens the TierChangeDrawer (PR 3c).
  *   - "Open billing portal" routes to Stripe-hosted portal. Enabled only when
  *     the tenant has a Stripe customer on file (post-checkout).
  */
-
-type TierPriceCopy = {
-  label: string;
-  monthly: string;
-  annual: string;
-  accent: string;
-};
-
-const TIER_META: Record<BillingState["tier"], TierPriceCopy> = {
-  starter:    { label: "Starter",    monthly: "$97",     annual: "$970",      accent: "text-foreground" },
-  growth:     { label: "Growth",     monthly: "$297",    annual: "$2,970",    accent: "text-primary"    },
-  pro:        { label: "Pro",        monthly: "$497",    annual: "$4,970",    accent: "text-primary"    },
-  enterprise: { label: "Enterprise", monthly: "Custom",  annual: "Custom",    accent: "text-primary"    },
-};
 
 function formatPeriodEnd(iso: string): string {
   const d = new Date(iso);
@@ -50,7 +36,7 @@ type Props = {
 };
 
 export function TierCard({ state, onMutated }: Props) {
-  const meta = TIER_META[state.tier];
+  const meta = TIER_CONFIG[state.tier];
   const { openPortal, opening } = useBillingPortal();
   const [drawerOpen, setDrawerOpen] = useState(false);
 

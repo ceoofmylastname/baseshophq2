@@ -6,6 +6,7 @@ import { RequireOwner } from "@/components/auth/RequireOwner";
 import { PublicOrRedirect } from "@/components/auth/PublicOrRedirect";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { MarketingPage } from "@/pages/Marketing";
+import { PricingPage } from "@/pages/Pricing";
 import { LoginPage } from "@/pages/Login";
 import { SignupPage } from "@/pages/Signup";
 import { AcceptInvitePage } from "@/pages/AcceptInvite";
@@ -41,6 +42,10 @@ export default function App() {
               </PublicOrRedirect>
             }
           />
+
+          {/* Public pricing page. NOT wrapped in PublicOrRedirect — pricing
+              is public to everyone, including logged-in users. */}
+          <Route path="/pricing" element={<PricingPage />} />
 
           <Route path="/login"  element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />

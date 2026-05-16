@@ -159,6 +159,12 @@ export function MarketingPage() {
           <BaseshopLogo className="h-7 w-auto sm:h-9" />
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
+              to="/pricing"
+              className="rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-3"
+            >
+              Pricing
+            </Link>
+            <Link
               to="/login"
               className="rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-3"
             >
@@ -381,7 +387,7 @@ export function MarketingPage() {
             Forty-five minutes. Your screen, my screen. Real data, real workflows.
             By the end you&apos;ll know exactly how it would feel running your agency on Baseshop HQ.
           </p>
-          <div className="mt-8 sm:mt-10">
+          <div className="mt-8 flex flex-col items-stretch justify-center gap-2.5 sm:mt-10 sm:flex-row sm:items-center sm:gap-3">
             <Button
               size="lg"
               onClick={() => setDemoOpen(true)}
@@ -389,6 +395,12 @@ export function MarketingPage() {
             >
               Book a private demo <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
+            <Link
+              to="/pricing"
+              className="rounded-full border border-white/10 bg-white/[0.02] px-5 py-2.5 text-center text-sm font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            >
+              See pricing
+            </Link>
           </div>
         </div>
       </section>
