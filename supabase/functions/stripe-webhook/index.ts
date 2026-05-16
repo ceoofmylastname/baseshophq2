@@ -1,5 +1,5 @@
 /**
- * Supabase Edge Function: stripe-webhook (Phase 17 PR 2)
+ * Supabase Edge Function: stripe-webhook (Phase 17 PR 2 + gap closure)
  *
  * verify_jwt = false. Stripe signs the request; we verify the
  * `stripe-signature` header against the Vault entry
@@ -10,21 +10,28 @@
  *   - customer.subscription.created
  *   - customer.subscription.updated
  *   - customer.subscription.deleted
- *   - invoice.paid
- *   - invoice.payment_failed
+ *   - invoice.paid                (stateful — handled inline)
+ *   - invoice.payment_failed      (stateful — handled inline)
  *
- * State updates run through the pure helper
+ * State updates for stateless events run through the pure helper
  * `mapStripeEventToTenantUpdate` in _shared/state-mapping.ts. Tier + addon
  * resolution from subscription line items runs through
- * `resolveTierFromSubscriptionItems` in _shared/tier-resolver.ts.
+ * `resolveTierFromSubscriptionItems` in _shared/tier-resolver.ts. The two
+ * stateful events (invoice.paid / invoice.payment_failed) skip the pure
+ * helper entirely and route into _shared/payment-handlers.ts, which reads
+ * the current `payment_failure_count` and writes the new state.
  *
- * By-design idempotency:
- *   - We do NOT maintain a stripe_events_seen table.
- *   - All writes are derived from the event payload deterministically; if
- *     Stripe redelivers the same event, the resulting UPDATE is a no-op or
- *     identical. The 3-failure → past_due flip is based on
- *     `invoice.attempt_count`, which is monotonic per invoice, so retries
- *     of the same event do not double-count.
+ * Idempotency (PR 2 gap closure):
+ *   Every event is first INSERTed into the public.stripe_webhook_events
+ *   audit table. The PK is `event_id` so Stripe redelivery surfaces as a
+ *   23505 unique_violation: if the prior attempt completed (processed_at
+ *   non-null) we 200 immediately; otherwise we re-run the handler. After
+ *   the handler returns ok we stamp `processed_at = now()` so future
+ *   redeliveries short-circuit.
+ *
+ * Bad-signature responses:
+ *   401 (was 400 pre-gap-closure). Stripe treats 401 the same as 4xx for
+ *   retry purposes; the new code matches HTTP semantics — auth failure.
  *
  * Dev-mode signature bypass:
  *   When SUPABASE_URL contains 'localhost' AND
@@ -47,6 +54,12 @@ import {
 } from "../_shared/stripe-client.ts";
 import { mapStripeEventToTenantUpdate } from "../_shared/state-mapping.ts";
 import { resolveTierFromSubscriptionItems } from "../_shared/tier-resolver.ts";
+import {
+  applyInvoicePaid,
+  applyInvoicePaymentFailed,
+  handleAuditInsert,
+  markAuditProcessed,
+} from "../_shared/payment-handlers.ts";
 
 const HANDLED_EVENTS = new Set<string>([
   "checkout.session.completed",
@@ -95,7 +108,8 @@ Deno.serve(async (req: Request) => {
     console.warn("stripe-webhook: signature verification SKIPPED (local dev)");
   } else {
     if (!sigHeader) {
-      return jsonResponse(400, { ok: false, error_code: "missing_signature", error_message: "stripe-signature header is required" });
+      // Missing signature — auth failure → 401 (PR 2 gap closure).
+      return jsonResponse(401, { ok: false, error_code: "missing_signature", error_message: "stripe-signature header is required" });
     }
 
     let webhookSecret: string | null;
@@ -111,13 +125,35 @@ Deno.serve(async (req: Request) => {
     try {
       event = await stripe.webhooks.constructEventAsync(rawBody, sigHeader, webhookSecret);
     } catch (e) {
-      return jsonResponse(400, { ok: false, error_code: "signature_verification_failed", error_message: e instanceof Error ? e.message : String(e) });
+      // Invalid signature — auth failure → 401 (PR 2 gap closure).
+      return jsonResponse(401, { ok: false, error_code: "signature_verification_failed", error_message: e instanceof Error ? e.message : String(e) });
     }
   }
+
+  // ---- Audit insert (idempotency gate) ----
+  //      Runs for every signature-verified event before any state mutation
+  //      so Stripe redeliveries short-circuit safely.
+  const auditOutcome = await handleAuditInsert(
+    admin as unknown as Parameters<typeof handleAuditInsert>[0],
+    event.id,
+    event.type,
+    event as unknown as Record<string, unknown>,
+  );
+  if (!auditOutcome.ok) {
+    return jsonResponse(500, { ok: false, error_code: auditOutcome.error_code, error_message: auditOutcome.error_message });
+  }
+  if (!auditOutcome.new_row && auditOutcome.already_processed) {
+    return jsonResponse(200, { ok: true, received: true, skipped: "already_processed", event_id: event.id, event_type: event.type });
+  }
+  // new_row=true OR (new_row=false AND already_processed=false). Both fall
+  // through to the handler — the latter is a retry of a partially-completed
+  // attempt.
 
   // ---- Dispatch ----
   if (!HANDLED_EVENTS.has(event.type)) {
     // Acknowledge to keep Stripe's delivery queue happy; we just don't act.
+    // Stamp processed_at so a redelivery doesn't re-enter this branch.
+    await markAuditProcessed(admin as unknown as Parameters<typeof markAuditProcessed>[0], event.id, null);
     return jsonResponse(200, { ok: true, ignored: true, event_type: event.type });
   }
 
@@ -125,47 +161,73 @@ Deno.serve(async (req: Request) => {
     // Step 1: figure out which tenant the event is about.
     const tenantId = await resolveTenantId(admin, event);
     if (!tenantId) {
-      // Nothing to do — log and ack. The most common cause is an event for
-      // an unknown subscription/customer (e.g. test data, or a customer
-      // created outside this app).
+      // Nothing to do — log, stamp, and ack. The most common cause is an
+      // event for an unknown subscription/customer (e.g. test data, or a
+      // customer created outside this app).
       console.warn(`stripe-webhook: could not resolve tenant for event ${event.id} (${event.type})`);
+      await markAuditProcessed(admin as unknown as Parameters<typeof markAuditProcessed>[0], event.id, null);
       return jsonResponse(200, { ok: true, ignored: true, reason: "no_tenant_match", event_type: event.type });
     }
 
-    // Step 2: derive tier + addon from subscription items where applicable.
-    const tierPatch = await deriveTierPatch(admin, event);
+    // Step 2: route stateful events to payment-handlers; stateless events
+    //         to the pure mapper + tier resolver.
+    let summaryPatch: Record<string, unknown> = {};
 
-    // Step 3: derive billing_status / trial fields from the event.
-    const statePatch = mapStripeEventToTenantUpdate(extractStateInput(event));
-
-    // Step 4: persist as one UPDATE if we have anything to write.
-    const patch = { ...tierPatch, ...statePatch };
-    if (Object.keys(patch).length > 0) {
-      const { error: updErr } = await admin
-        .from("tenants")
-        .update(patch)
-        .eq("id", tenantId);
-      if (updErr) {
-        return jsonResponse(500, {
-          ok: false,
-          error_code: "tenant_update_failed",
-          error_message: updErr.message,
-          event_type: event.type,
-        });
+    if (event.type === "invoice.payment_failed") {
+      const out = await applyInvoicePaymentFailed(
+        admin as unknown as Parameters<typeof applyInvoicePaymentFailed>[0],
+        tenantId,
+      );
+      if (!out.ok) {
+        return jsonResponse(500, { ok: false, error_code: out.error_code, error_message: out.error_message, event_type: event.type });
       }
+      summaryPatch = { payment_failure_count: out.new_count };
+      if (out.billing_status_set) summaryPatch.billing_status = out.billing_status_set;
+    } else if (event.type === "invoice.paid") {
+      const out = await applyInvoicePaid(
+        admin as unknown as Parameters<typeof applyInvoicePaid>[0],
+        tenantId,
+      );
+      if (!out.ok) {
+        return jsonResponse(500, { ok: false, error_code: out.error_code, error_message: out.error_message, event_type: event.type });
+      }
+      summaryPatch = { payment_failure_count: 0, billing_status: "active", is_in_trial: false };
+    } else {
+      // Stateless events: derive tier + state patches and persist.
+      const tierPatch = await deriveTierPatch(admin, event);
+      const statePatch = mapStripeEventToTenantUpdate(extractStateInput(event));
+      const patch = { ...tierPatch, ...statePatch };
+      if (Object.keys(patch).length > 0) {
+        const { error: updErr } = await admin
+          .from("tenants")
+          .update(patch)
+          .eq("id", tenantId);
+        if (updErr) {
+          return jsonResponse(500, {
+            ok: false,
+            error_code: "tenant_update_failed",
+            error_message: updErr.message,
+            event_type: event.type,
+          });
+        }
+      }
+      summaryPatch = patch;
     }
 
-    // Step 5: structured log line — useful for grepping Edge Function logs
-    // during an incident. The webhook does not maintain its own table.
+    // Step 3: stamp the audit row.
+    await markAuditProcessed(admin as unknown as Parameters<typeof markAuditProcessed>[0], event.id, tenantId);
+
+    // Step 4: structured log line — useful for grepping Edge Function logs
+    // during an incident.
     console.log(JSON.stringify({
       msg: "stripe_webhook_processed",
       event_id: event.id,
       event_type: event.type,
       tenant_id: tenantId,
-      patch,
+      patch: summaryPatch,
     }));
 
-    return jsonResponse(200, { ok: true, event_type: event.type, tenant_id: tenantId, patch });
+    return jsonResponse(200, { ok: true, event_type: event.type, tenant_id: tenantId, patch: summaryPatch });
   } catch (e) {
     return jsonResponse(500, {
       ok: false,

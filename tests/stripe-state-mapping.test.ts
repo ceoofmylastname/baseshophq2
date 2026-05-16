@@ -5,8 +5,8 @@
  *   - customer.subscription.created/updated × {trialing, active, past_due,
  *     unpaid, canceled, incomplete}
  *   - customer.subscription.deleted
- *   - invoice.paid
- *   - invoice.payment_failed × {attempt_count <3, =3, >3}
+ *   - invoice.paid                  (stateful — handler-level; helper returns {})
+ *   - invoice.payment_failed        (stateful — handler-level; helper returns {})
  *   - checkout.session.completed
  *
  * Plus edge cases:
@@ -14,6 +14,13 @@
  *   - subscription.created with no status returns empty
  *   - trialing with no trial_end returns trial_ends_at=null
  *   - trialing with trial_end=0 returns trial_ends_at=null
+ *
+ * NOTE (PR 2 gap closure): invoice.paid and invoice.payment_failed are no
+ * longer handled by this pure mapper because the result depends on
+ * tenants.payment_failure_count (read-modify-write loop). Both return `{}`
+ * here so the webhook caller's merge path skips them, and the real state
+ * mutation runs through tests/stripe-webhook-handler.test.ts against the
+ * extracted handlers in _shared/payment-handlers.ts.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -135,25 +142,28 @@ describe("customer.subscription.deleted", () => {
   });
 });
 
-describe("invoice.paid", () => {
-  test("maps to active + clears trial", () => {
+describe("invoice.paid (stateful — handler-level)", () => {
+  // Stateful events are handled by _shared/payment-handlers.ts because the
+  // result depends on tenants.payment_failure_count. The pure mapper now
+  // returns {} so the webhook caller's merge path skips them. See
+  // tests/stripe-webhook-handler.test.ts for the actual transition tests.
+  test("returns empty patch (delegated to handler)", () => {
     const out = mapStripeEventToTenantUpdate({
       eventType: "invoice.paid",
     });
-    expect(out).toEqual({
-      billing_status: "active",
-      is_in_trial: false,
-      trial_ends_at: null,
-    });
+    expect(out).toEqual({});
   });
 });
 
-describe("invoice.payment_failed", () => {
+describe("invoice.payment_failed (stateful — handler-level)", () => {
+  // See note above. Attempt-count dispatch moved into the handler so the
+  // 3-failure → past_due flip can read + write payment_failure_count in
+  // one transaction.
   test.each([
     [0],
     [1],
     [2],
-  ])("attempt_count=%i (< 3) returns empty (no state flip yet)", (attempt) => {
+  ])("attempt_count=%i returns empty patch (delegated to handler)", (attempt) => {
     const out = mapStripeEventToTenantUpdate({
       eventType: "invoice.payment_failed",
       invoiceAttemptCount: attempt,
@@ -165,15 +175,15 @@ describe("invoice.payment_failed", () => {
     [3],
     [4],
     [10],
-  ])("attempt_count=%i (>= 3) maps to past_due", (attempt) => {
+  ])("attempt_count=%i returns empty patch (delegated to handler)", (attempt) => {
     const out = mapStripeEventToTenantUpdate({
       eventType: "invoice.payment_failed",
       invoiceAttemptCount: attempt,
     });
-    expect(out).toEqual({ billing_status: "past_due" });
+    expect(out).toEqual({});
   });
 
-  test("missing attempt_count returns empty (treated as 0)", () => {
+  test("missing attempt_count returns empty (delegated to handler)", () => {
     const out = mapStripeEventToTenantUpdate({
       eventType: "invoice.payment_failed",
     });

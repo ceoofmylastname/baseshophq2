@@ -6,6 +6,16 @@
  * convention for shared modules) but has zero Deno-specific imports, so it
  * can be `import`-ed from tests/ under bun's tsconfig.
  *
+ * STATEFUL EVENTS (handled inline in the webhook, NOT here):
+ *   invoice.paid and invoice.payment_failed both depend on the current
+ *   tenants.payment_failure_count to decide the resulting state — they need
+ *   to read the row before they can derive the patch. That cannot be a pure
+ *   function, so the webhook handler routes those two event types into
+ *   payment-handlers.ts (which talks to the admin client directly) and skips
+ *   the merge with whatever this function returns. To keep the dispatch
+ *   shape uniform we keep the cases here and return `{}` so the caller's
+ *   `Object.keys(patch).length > 0` guard correctly skips the noop UPDATE.
+ *
  * This implements the S-1 §5 state table as locked by the parent for PR 2:
  *
  *   ┌─────────────────────────────────────────┬────────────────────────────────────────────────────────────────┐
@@ -23,12 +33,8 @@
  *   │                                         │                                                                │
  *   │ customer.subscription.deleted           │ billing_status='cancelled'                                     │
  *   │                                         │                                                                │
- *   │ invoice.paid                            │ billing_status='active', is_in_trial=false, trial_ends_at=null │
- *   │                                         │                                                                │
- *   │ invoice.payment_failed                  │ attempt_count >= 3 → billing_status='past_due'                 │
- *   │                                         │ attempt_count <  3 → no change (let Stripe retry)              │
- *   │                                         │ NOTE: the past_due → suspended flip after the 14-day grace     │
- *   │                                         │ window is a *separate* later cron (out of scope for PR 2).     │
+ *   │ invoice.paid                            │ STATEFUL — handler-level (returns {} here)                     │
+ *   │ invoice.payment_failed                  │ STATEFUL — handler-level (returns {} here)                     │
  *   │                                         │                                                                │
  *   │ checkout.session.completed              │ no direct tenants update; the subscription.created event       │
  *   │                                         │ that follows is the one that flips state.                      │
@@ -67,7 +73,7 @@ function unixSecondsToIso(seconds: number | null | undefined): string | null {
 export function mapStripeEventToTenantUpdate(
   input: StateMappingInput
 ): StateMappingOutput {
-  const { eventType, subscriptionStatus, invoiceAttemptCount, subscriptionTrialEnd } = input;
+  const { eventType, subscriptionStatus, subscriptionTrialEnd } = input;
 
   switch (eventType) {
     case "customer.subscription.created":
@@ -101,20 +107,12 @@ export function mapStripeEventToTenantUpdate(
       return { billing_status: "cancelled" };
 
     case "invoice.paid":
-      return {
-        billing_status: "active",
-        is_in_trial: false,
-        trial_ends_at: null,
-      };
-
-    case "invoice.payment_failed": {
-      const attempts = invoiceAttemptCount ?? 0;
-      if (attempts >= 3) {
-        return { billing_status: "past_due" };
-      }
-      // attempt_count < 3 — Stripe will retry; no state change yet.
+    case "invoice.payment_failed":
+      // Stateful events. Handled inline in the webhook (see
+      // payment-handlers.ts) because the result depends on
+      // tenants.payment_failure_count. Returning {} so the caller's merge
+      // path skips this branch entirely.
       return {};
-    }
 
     case "checkout.session.completed":
       // No direct tenants update; the customer.subscription.created event

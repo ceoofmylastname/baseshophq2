@@ -1,13 +1,20 @@
 /**
- * Supabase Edge Function: active-agent-snapshot (Phase 17 PR 2)
+ * Supabase Edge Function: enterprise-snapshot (Phase 17 PR 2 + gap closure)
  *
  * verify_jwt = false. Authenticated via the shared `X-Snapshot-Secret`
- * header — pg_cron POSTs to this endpoint on the 1st of each month and
- * includes the secret read from the Vault entry
- * `active_agent_snapshot_secret`. The cron schedule + secret expectation
- * are documented in branded/stripe-products.md.
+ * header — pg_cron POSTs to this endpoint daily at 00:05 UTC and includes
+ * the secret read from the Vault entry `active_agent_snapshot_secret`. The
+ * cron schedule + secret expectation are documented in branded/stripe-products.md.
  *
- * For each Enterprise tenant:
+ * Run gate (daily-with-1st-of-month-gate):
+ *   - On the 1st of the month (UTC): process all eligible enterprise tenants.
+ *   - Any other day: act as a "recovery" pass — if every enterprise tenant
+ *     already has a billing_snapshots row for the prior period_start, fast-
+ *     skip with `{ ok: true, skipped: 'not_first_of_month' }`. Otherwise
+ *     process only the missing ones so a one-off failure on the 1st gets
+ *     caught up automatically by the next day's run.
+ *
+ * Per processed tenant:
  *   1. Compute active-agent count via the SECURITY DEFINER
  *      public.compute_active_agent_count RPC (canonical definition from
  *      wiki/active-agent-billing-model.md).
@@ -17,12 +24,13 @@
  *   3. Report the count to Stripe via
  *      `stripe.subscriptionItems.createUsageRecord` (timestamp = period
  *      start, action = 'set' — overwrites any prior report for the period).
- *   4. INSERT into billing_snapshots with the result. Failures are logged
- *      per-tenant but do not abort the whole job.
+ *   4. UPSERT into billing_snapshots with ignoreDuplicates so that silent
+ *      re-runs are no-ops at the DB layer (the unique constraint on
+ *      (tenant_id, period_start) is the source of truth).
  *
- * The endpoint is idempotent at the (tenant, period_start) grain because of
- * the unique constraint on billing_snapshots. A retry for the same period
- * is rejected at DB layer — surface and continue.
+ * Filter: only `billing_status IN ('active','past_due')` enterprise tenants
+ * are processed. Cancelled / suspended tenants are skipped — they aren't
+ * being charged so there is nothing to report.
  */
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -93,6 +101,12 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(401, { ok: false, error_code: "invalid_snapshot_secret", error_message: "X-Snapshot-Secret header missing or wrong" });
   }
 
+  const now = new Date();
+  const isFirstOfMonth = now.getUTCDate() === 1;
+  const { period_start: periodStartDate, period_end: periodEndDate } = priorMonthPeriod(now);
+  const periodStartISO = isoDate(periodStartDate);
+  const periodEndISO   = isoDate(periodEndDate);
+
   // ---- Pre-flight: find the enterprise unit price ID (we need it to map
   //      subscription items to the right line). Missing → fatal because the
   //      whole job needs it. ----
@@ -117,25 +131,52 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(500, { ok: false, error_code: "stripe_init_failed", error_message: e instanceof Error ? e.message : String(e) });
   }
 
-  // ---- Pull Enterprise tenants ----
+  // ---- Pull eligible Enterprise tenants ----
+  //      Filter: active + past_due only. Cancelled/suspended tenants aren't
+  //      being charged for the period so there's nothing to report.
   const { data: tenants, error: tenantsErr } = await admin
     .from("tenants")
     .select("id, stripe_subscription_id, current_plan_tier")
-    .eq("current_plan_tier", "enterprise");
+    .eq("current_plan_tier", "enterprise")
+    .in("billing_status", ["active", "past_due"]);
   if (tenantsErr) {
     return jsonResponse(500, { ok: false, error_code: "tenants_query_failed", error_message: tenantsErr.message });
   }
 
-  const { period_start: periodStartDate, period_end: periodEndDate } = priorMonthPeriod(new Date());
-  const periodStartISO = isoDate(periodStartDate);
-  const periodEndISO   = isoDate(periodEndDate);
+  // ---- Run gate ----
+  //      On the 1st of the month: process every eligible tenant.
+  //      Other days: only process tenants whose prior-period snapshot is
+  //      missing (recovery from a failed 1st-of-month run). If everyone is
+  //      up-to-date, short-circuit with skipped='not_first_of_month'.
+  let tenantsToProcess: TenantRow[] = (tenants ?? []) as TenantRow[];
+  if (!isFirstOfMonth) {
+    const { data: existing, error: existingErr } = await admin
+      .from("billing_snapshots")
+      .select("tenant_id")
+      .eq("period_start", periodStartISO);
+    if (existingErr) {
+      return jsonResponse(500, { ok: false, error_code: "snapshots_query_failed", error_message: existingErr.message });
+    }
+    const haveSnapshot = new Set<string>((existing ?? []).map((r: { tenant_id: string }) => r.tenant_id));
+    tenantsToProcess = tenantsToProcess.filter(t => !haveSnapshot.has(t.id));
+    if (tenantsToProcess.length === 0) {
+      return jsonResponse(200, {
+        ok: true,
+        skipped: "not_first_of_month",
+        period_start: periodStartISO,
+        period_end:   periodEndISO,
+        eligible:     tenants?.length ?? 0,
+        processed:    0,
+      });
+    }
+  }
+
   // Stripe usage_record timestamp is UNIX seconds — anchor at period_start
   const usageTimestamp = Math.floor(periodStartDate.getTime() / 1000);
 
   const results: SnapshotResult[] = [];
 
-  for (const rawTenant of tenants ?? []) {
-    const tenant = rawTenant as TenantRow;
+  for (const tenant of tenantsToProcess) {
     const result: SnapshotResult = {
       tenant_id: tenant.id,
       active_agent_count: null,
@@ -207,21 +248,26 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // 4. Persist the snapshot. Unique (tenant_id, period_start) means
-      //    re-running this job for the same period gets cleanly rejected
-      //    here — surface and continue.
-      const { error: insertErr } = await admin
+      // 4. Persist the snapshot via UPSERT with ignoreDuplicates so silent
+      //    re-runs (e.g. cron firing on an already-processed period) are
+      //    no-ops at the DB layer. The unique constraint on
+      //    (tenant_id, period_start) — installed in PR 1 — is the source of
+      //    truth; this just makes accidental double-fires harmless.
+      const { error: upsertErr } = await admin
         .from("billing_snapshots")
-        .insert({
-          tenant_id:              tenant.id,
-          period_start:           periodStartISO,
-          period_end:             periodEndISO,
-          active_agent_count:     count,
-          tier_at_snapshot:       tenant.current_plan_tier,
-          stripe_usage_record_id: result.stripe_usage_record_id,
-        });
-      if (insertErr) {
-        result.error = `billing_snapshots insert failed: ${insertErr.message}`;
+        .upsert(
+          {
+            tenant_id:              tenant.id,
+            period_start:           periodStartISO,
+            period_end:             periodEndISO,
+            active_agent_count:     count,
+            tier_at_snapshot:       tenant.current_plan_tier,
+            stripe_usage_record_id: result.stripe_usage_record_id,
+          },
+          { onConflict: "tenant_id,period_start", ignoreDuplicates: true },
+        );
+      if (upsertErr) {
+        result.error = `billing_snapshots upsert failed: ${upsertErr.message}`;
         // We still report success for the Stripe usage_record; just flag.
       }
 
@@ -235,8 +281,10 @@ Deno.serve(async (req: Request) => {
 
   const summary = {
     ok: true,
+    is_first_of_month: isFirstOfMonth,
     period_start: periodStartISO,
     period_end:   periodEndISO,
+    eligible:     tenants?.length ?? 0,
     processed:    results.length,
     succeeded:    results.filter(r => !r.skipped && !r.error).length,
     skipped:      results.filter(r => r.skipped).length,
@@ -244,7 +292,7 @@ Deno.serve(async (req: Request) => {
     results,
   };
 
-  console.log(JSON.stringify({ msg: "active_agent_snapshot_run", ...summary }));
+  console.log(JSON.stringify({ msg: "enterprise_snapshot_run", ...summary }));
 
   return jsonResponse(200, summary);
 });
