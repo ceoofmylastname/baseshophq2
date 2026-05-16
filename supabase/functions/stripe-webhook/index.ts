@@ -196,7 +196,8 @@ Deno.serve(async (req: Request) => {
       // Stateless events: derive tier + state patches and persist.
       const tierPatch = await deriveTierPatch(admin, event);
       const statePatch = mapStripeEventToTenantUpdate(extractStateInput(event));
-      const patch = { ...tierPatch, ...statePatch };
+      const periodEndPatch = extractPeriodEndPatch(event);
+      const patch = { ...tierPatch, ...statePatch, ...periodEndPatch };
       if (Object.keys(patch).length > 0) {
         const { error: updErr } = await admin
           .from("tenants")
@@ -376,4 +377,24 @@ function extractStateInput(event: Stripe.Event) {
     invoiceAttemptCount: typeof obj.attempt_count === "number" ? obj.attempt_count : undefined,
     subscriptionTrialEnd: typeof obj.trial_end === "number" ? obj.trial_end : null,
   };
+}
+
+/**
+ * Extract current_period_end (Unix seconds → ISO timestamptz) from a
+ * subscription event payload. Returns `{}` for non-subscription events or
+ * when the field is absent. The webhook merges this into the patch alongside
+ * the tier + state-mapping outputs so useBillingState can render renewal
+ * dates without a separate Stripe round-trip.
+ */
+function extractPeriodEndPatch(event: Stripe.Event): { current_period_end?: string } {
+  if (
+    event.type !== "customer.subscription.created" &&
+    event.type !== "customer.subscription.updated"
+  ) {
+    return {};
+  }
+  const obj = event.data.object as Record<string, unknown>;
+  const cpe = obj.current_period_end;
+  if (typeof cpe !== "number" || cpe <= 0) return {};
+  return { current_period_end: new Date(cpe * 1000).toISOString() };
 }

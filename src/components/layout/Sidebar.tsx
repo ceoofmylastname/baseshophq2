@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, LayoutDashboard, Users, BarChart3, FileText, Settings, Upload, Wallet, TrendingUp, LineChart, Trophy, UserCheck, FileSignature } from "lucide-react";
+import { Home, LayoutDashboard, Users, BarChart3, FileText, Settings, Upload, Wallet, TrendingUp, LineChart, Trophy, UserCheck, FileSignature, CreditCard } from "lucide-react";
 import { useIsOwner } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,7 @@ const NAV: NavItem[] = [
   { to: "/scoreboard", label: "Scoreboard", icon: Trophy },
   { to: "/active-agents", label: "Active Agents", icon: UserCheck },
   { to: "/my-rates",  label: "My Rates",  icon: Wallet },
+  { to: "/billing",   label: "Billing",   icon: CreditCard, ownerOnly: true },
   { to: "/settings",  label: "Settings",  icon: Settings },
 ];
 

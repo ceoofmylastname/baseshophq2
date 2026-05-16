@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { BillingStatusBanner } from "@/components/billing/BillingStatusBanner";
 import { cn } from "@/lib/utils";
 
 /**
@@ -65,6 +66,7 @@ export function DashboardShell() {
           that still scroll horizontally inside their bounds — so wide
           tables work, but no page can blow out the page edge). */}
       <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+        <BillingStatusBanner />
         <Outlet />
       </main>
 

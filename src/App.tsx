@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Toaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { RequireOwner } from "@/components/auth/RequireOwner";
@@ -24,6 +25,7 @@ import { ScoreboardPage } from "@/pages/Scoreboard";
 import { ActiveAgentsPage } from "@/pages/ActiveAgents";
 import { ContractsPage } from "@/pages/Contracts";
 import { SettingsPage } from "@/pages/Settings";
+import { BillingPage } from "@/pages/Billing";
 
 export default function App() {
   return (
@@ -96,11 +98,13 @@ export default function App() {
             <Route path="/contracts"       element={<ContractsPage />} />
             <Route path="/my-rates"  element={<MyRatesPage />} />
             <Route path="/settings"  element={<SettingsPage />} />
+            <Route path="/billing"   element={<BillingPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </BrowserRouter>
+      <Toaster richColors closeButton position="top-right" theme="dark" />
     </AuthProvider>
   );
 }
