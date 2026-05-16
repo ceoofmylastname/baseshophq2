@@ -38,6 +38,18 @@ Five recurring products + one usage-priced unit + one add-on per domain. All mon
 5. Copy the **webhook signing secret** into Supabase Vault as `stripe_webhook_signing_secret`.
 6. Copy each Price ID into Supabase Vault per the table below.
 
+### pg_cron and pg_net (one-time operator step, required for Enterprise metering)
+
+The monthly active-agent snapshot job runs as a `pg_cron` schedule that calls the `active-agent-snapshot` Edge Function via `pg_net.http_post`. Both extensions are off by default on Supabase Cloud and must be enabled manually before the schedule will fire:
+
+1. Open **Supabase Dashboard → Database → Extensions**.
+2. Search for `pg_cron` and toggle it **on**. Confirm the schema (`extensions` is fine).
+3. Search for `pg_net` and toggle it **on**.
+4. Open the Vault and create a new secret named **`active_agent_snapshot_secret`** (see the table below). The value should be a fresh 32-byte random hex string — generate with `openssl rand -hex 32`. This is the shared secret pg_cron will send in the `X-Snapshot-Secret` header; the Edge Function compares against the same Vault entry.
+5. Re-apply migration `20260518100000_phase17_vault_helpers.sql` (or run a no-op follow-up that re-executes the DO block). The migration is defensively wrapped — the first apply succeeds even without `pg_cron`, and only the cron schedule install gets skipped (with a `RAISE NOTICE`). After enabling the extensions, the re-apply installs the schedule.
+
+The schedule line is `0 6 1 * *` (06:00 UTC on the 1st of each month), with target URL `https://<project>.functions.supabase.co/active-agent-snapshot`.
+
 ---
 
 ## Supabase Vault entries
@@ -54,6 +66,7 @@ The platform reads these at runtime via `vault.decrypted_secrets`. Set them via 
 | `stripe_price_enterprise_active_agent_unit` | Price ID for the Enterprise per-active-agent unit | Used by the monthly snapshot job to find the subscription item to report usage against. |
 | `stripe_price_white_label_addon` | Price ID for the White-Label Add-On | Attached as a second line item on Growth/Pro/Enterprise checkouts when the toggle is on; can also be added/removed via the in-app Billing page. |
 | `stripe_price_additional_vanity_domain` | Price ID for additional vanity domains beyond the first | Quantity-based line item, incremented when an agency provisions a second (or third…) custom domain. |
+| `active_agent_snapshot_secret` | Shared secret for pg_cron → Edge Function authentication, 32-byte random hex (generate with `openssl rand -hex 32`) | The monthly `pg_cron` job sends this in `X-Snapshot-Secret`; the `active-agent-snapshot` Edge Function reads it from Vault and compares. |
 
 ### Verifying Vault is populated (from psql)
 
@@ -66,11 +79,12 @@ SELECT name FROM vault.decrypted_secrets WHERE name IN (
   'stripe_price_pro',
   'stripe_price_enterprise_active_agent_unit',
   'stripe_price_white_label_addon',
-  'stripe_price_additional_vanity_domain'
+  'stripe_price_additional_vanity_domain',
+  'active_agent_snapshot_secret'
 ) ORDER BY name;
 ```
 
-Should return all 8 names. If any are missing, PR 2 code paths that need them will fail explicitly at the call site rather than silently — the Edge Function checks each lookup and returns a structured error if the secret is absent.
+Should return all 9 names. If any are missing, PR 2 code paths that need them will fail explicitly at the call site rather than silently — the Edge Function checks each lookup and returns a structured error if the secret is absent.
 
 ---
 
