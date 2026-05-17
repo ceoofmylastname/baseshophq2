@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHasPassword } from "@/hooks/useHasPassword";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SetInitialPasswordForm } from "./SetInitialPasswordForm";
 import { Mail, Lock, Check, Eye, EyeOff, ArrowRight, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -110,93 +110,6 @@ function EmailChangeForm({ currentEmail }: { currentEmail: string }) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={submitting || !newEmail.trim()}>
         {submitting ? "Sending confirmation..." : <>Send confirmation link <ArrowRight className="ml-1.5 h-4 w-4" /></>}
-      </Button>
-    </form>
-  );
-}
-
-/**
- * "Set Your Password" branch (used when hasPassword === false). No current
- * password prompt, no re-auth check. The existing session is the proof of
- * identity. After success we call refetch() so the form flips to
- * "Change Password" mode and any banner pulling from the same hook updates.
- */
-function SetInitialPasswordForm({ onSuccess }: { onSuccess: () => void }) {
-  const [newPassword, setNewPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [showNew, setShowNew] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-    if (newPassword !== confirm) {
-      setError("Passwords do not match.");
-      return;
-    }
-    setSubmitting(true);
-    const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
-    setSubmitting(false);
-    if (updateErr) {
-      setError(updateErr.message);
-      return;
-    }
-    toast.success("Password set successfully. You can now log in with email and password.");
-    setNewPassword("");
-    setConfirm("");
-    onSuccess();
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Set a password to log in with email and password going forward. Magic links remain available.
-      </p>
-      <div className="space-y-2">
-        <Label htmlFor="ac-set-new-pw">New password</Label>
-        <div className="relative">
-          <Input
-            id="ac-set-new-pw"
-            type={showNew ? "text" : "password"}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            className="h-11 border-white/10 bg-white/[0.03] pr-10 focus-visible:ring-primary sm:h-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowNew((s) => !s)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
-            aria-label={showNew ? "Hide password" : "Show password"}
-          >
-            {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        <p className="text-[11px] text-muted-foreground">At least 8 characters.</p>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="ac-set-confirm-pw">Confirm password</Label>
-        <Input
-          id="ac-set-confirm-pw"
-          type={showNew ? "text" : "password"}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="h-11 border-white/10 bg-white/[0.03] focus-visible:ring-primary sm:h-10"
-        />
-      </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={submitting || !newPassword || !confirm}>
-        {submitting ? "Saving..." : "Save password"}
       </Button>
     </form>
   );
