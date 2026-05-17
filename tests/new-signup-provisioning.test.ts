@@ -19,6 +19,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   handleNewSignupProvisioning,
+  type MagicLinkSender,
   type ProvisioningAdminLike,
   type ProvisioningEvent,
   type ProvisioningStripeLike,
@@ -78,8 +79,8 @@ type State = {
   failInsertOn?: "agencies" | "tenants" | "agents" | null;
   /** Capture: every call admin.auth.admin.deleteUser made (for rollback assertion). */
   deletedUserIds: string[];
-  /** Capture: generateLink invocations. */
-  magicLinks: Array<{ email: string; redirectTo?: string }>;
+  /** Capture: magic-link send invocations. */
+  magicLinks: Array<{ email: string; redirect_to: string }>;
   /** Capture: order of side-effect writes (for FK-ordering test). */
   writeLog: string[];
 };
@@ -134,10 +135,6 @@ function makeMockAdmin(state: State): ProvisioningAdminLike {
         async deleteUser(id: string) {
           state.deletedUserIds.push(id);
           state.users = state.users.filter((u) => u.id !== id);
-          return { data: null, error: null };
-        },
-        async generateLink(params) {
-          state.magicLinks.push({ email: params.email, redirectTo: params.options?.redirectTo });
           return { data: null, error: null };
         },
       },
@@ -304,6 +301,19 @@ function makeMockAdmin(state: State): ProvisioningAdminLike {
   };
 }
 
+function makeMockMagicLinkSender(
+  state: State,
+  opts: { failWith?: { status?: number; error: string } } = {},
+): MagicLinkSender {
+  return async (params) => {
+    state.magicLinks.push({ email: params.email, redirect_to: params.redirect_to });
+    if (opts.failWith) {
+      return { ok: false, status: opts.failWith.status, error: opts.failWith.error };
+    }
+    return { ok: true };
+  };
+}
+
 function makeMockStripe(opts: {
   metadata: Record<string, string>;
   current_period_end: number;
@@ -383,6 +393,7 @@ describe("happy path", () => {
       stripe,
       event,
       publicSiteUrl: PUBLIC_SITE_URL,
+      magicLinkSender: makeMockMagicLinkSender(state),
     });
 
     expect(resp.status).toBe(200);
@@ -431,10 +442,10 @@ describe("happy path", () => {
     expect(auditRow?.tenant_id).toBe(tenant.id);
     expect(auditRow?.error).toBeNull();
 
-    // magic link generated to /home
+    // magic link sent to /home via SMTP-path sender
     expect(state.magicLinks.length).toBe(1);
     expect(state.magicLinks[0].email).toBe("owner@example.com");
-    expect(state.magicLinks[0].redirectTo).toBe("https://baseshophq.com/home");
+    expect(state.magicLinks[0].redirect_to).toBe("https://baseshophq.com/home");
   });
 });
 
@@ -466,6 +477,7 @@ describe("idempotency: subscription_id already maps to tenant", () => {
       stripe,
       event,
       publicSiteUrl: PUBLIC_SITE_URL,
+      magicLinkSender: makeMockMagicLinkSender(state),
     });
 
     expect(resp.status).toBe(200);
@@ -497,6 +509,7 @@ describe("validation failure", () => {
       stripe,
       event,
       publicSiteUrl: PUBLIC_SITE_URL,
+      magicLinkSender: makeMockMagicLinkSender(state),
     });
 
     expect(resp.status).toBe(200);
@@ -532,6 +545,7 @@ describe("auth user already exists (step c.i fallback)", () => {
       stripe,
       event,
       publicSiteUrl: PUBLIC_SITE_URL,
+      magicLinkSender: makeMockMagicLinkSender(state),
     });
 
     expect(resp.status).toBe(200);
@@ -560,6 +574,7 @@ describe("agency insert failure → rollback deletes auth.users", () => {
       stripe,
       event,
       publicSiteUrl: PUBLIC_SITE_URL,
+      magicLinkSender: makeMockMagicLinkSender(state),
     });
 
     expect(resp.status).toBe(500);
@@ -594,6 +609,7 @@ describe("tenant insert failure → rollback deletes agencies + auth.users in re
       stripe,
       event,
       publicSiteUrl: PUBLIC_SITE_URL,
+      magicLinkSender: makeMockMagicLinkSender(state),
     });
 
     expect(resp.status).toBe(500);
@@ -631,6 +647,7 @@ describe("FK ordering + reference integrity", () => {
       stripe,
       event,
       publicSiteUrl: PUBLIC_SITE_URL,
+      magicLinkSender: makeMockMagicLinkSender(state),
     });
 
     expect(resp.status).toBe(200);
@@ -654,5 +671,51 @@ describe("FK ordering + reference integrity", () => {
     expect(idxAgencies).toBeLessThan(idxTenants);
     expect(idxTenants).toBeLessThan(idxAgents);
     expect(idxAgents).toBeLessThan(idxOwnerUpdate);
+  });
+});
+
+describe("magic-link send failure (Phase 18.3)", () => {
+  test("sender returns ok:false → 500 + audit error, NO rollback, all rows persist", async () => {
+    const state = makeFreshState();
+    const stripe = makeMockStripe({ metadata: fullMetadata(), current_period_end: FUTURE_UNIX });
+    const event = eventWithSubscription(false);
+
+    const failingSender = makeMockMagicLinkSender(state, {
+      failWith: { status: 500, error: "smtp upstream timeout" },
+    });
+
+    const resp = await handleNewSignupProvisioning({
+      admin: makeMockAdmin(state),
+      stripe,
+      event,
+      publicSiteUrl: PUBLIC_SITE_URL,
+      magicLinkSender: failingSender,
+    });
+
+    expect(resp.status).toBe(500);
+    const body = await resp.json();
+    expect(body.ok).toBe(false);
+    expect(body.error_code).toBe("magic_link_send_failed");
+
+    // Sender was invoked with correct shape.
+    expect(state.magicLinks.length).toBe(1);
+    expect(state.magicLinks[0].email).toBe("owner@example.com");
+    expect(state.magicLinks[0].redirect_to).toBe("https://baseshophq.com/home");
+
+    // CRITICAL: no rollback. Customer paid, every row stays.
+    expect(state.deletedUserIds).toEqual([]);
+    expect(state.users.length).toBe(1);
+    expect(state.agencies.length).toBe(1);
+    expect(state.tenants.length).toBe(1);
+    expect(state.agents.length).toBe(1);
+    // tenants.owner_agent_id stays wired up — no rollback unset it.
+    expect(state.tenants[0].owner_agent_id).toBe(state.agents[0].id);
+
+    // Audit row: error stamped with new prefix, processed_at stays NULL so
+    // Stripe retries this webhook delivery.
+    const auditRow = state.events.find((e) => e.event_id === "evt_signup_1");
+    expect(auditRow?.error).toContain("magic_link_send:");
+    expect(auditRow?.error).toContain("smtp upstream timeout");
+    expect(auditRow?.processed_at).toBeNull();
   });
 });

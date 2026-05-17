@@ -62,6 +62,7 @@ import {
 } from "../_shared/payment-handlers.ts";
 import {
   handleNewSignupProvisioning,
+  type MagicLinkSender,
   type ProvisioningAdminLike,
   type ProvisioningStripeLike,
   type ProvisioningEvent,
@@ -177,6 +178,7 @@ Deno.serve(async (req: Request) => {
         stripe: stripe as unknown as ProvisioningStripeLike,
         event: event as unknown as ProvisioningEvent,
         publicSiteUrl,
+        magicLinkSender: makeMagicLinkSender(),
       });
     }
   }
@@ -266,6 +268,49 @@ Deno.serve(async (req: Request) => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Build the production magic-link sender. Hits POST /auth/v1/magiclink with
+ * the service-role key, which routes through Custom SMTP (Resend) and actually
+ * delivers the email. Returns a structured result so the pure helper can log
+ * + audit without throwing.
+ *
+ * The `admin.auth.admin.generateLink` shipped in Phase 18 only mints a URL and
+ * never triggers SMTP; this swaps to the endpoint the Supabase Dashboard
+ * "Send magic link" button uses.
+ */
+function makeMagicLinkSender(): MagicLinkSender {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  return async (params) => {
+    if (!supabaseUrl || !serviceRoleKey) {
+      return { ok: false, error: "missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env" };
+    }
+    try {
+      const resp = await fetch(`${supabaseUrl}/auth/v1/magiclink`, {
+        method: "POST",
+        headers: {
+          "apikey": serviceRoleKey,
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: params.email,
+          create_user: false,
+          redirect_to: params.redirect_to,
+        }),
+      });
+      if (!resp.ok) {
+        let bodyText = "";
+        try { bodyText = await resp.text(); } catch { /* swallow */ }
+        return { ok: false, status: resp.status, error: bodyText || `HTTP ${resp.status}` };
+      }
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  };
+}
 
 /**
  * Find the tenants row this event refers to.

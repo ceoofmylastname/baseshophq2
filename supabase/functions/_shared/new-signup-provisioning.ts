@@ -13,24 +13,27 @@
  *   f. Create tenants row (13 columns; agent_cap auto-synced by trigger)
  *   g. Create agents row (owner; 7 columns)
  *   h. Set tenants.owner_agent_id = newAgent.id
- *   i. Generate magic link (direct redirectTo /home; AuthProvider mounts at root)
+ *   i. Send magic link via SMTP (POST /auth/v1/magiclink; redirect_to /home)
  *   j. Mark audit row processed
  *   k. Structured success log
  *
- * Failure handling (locked D7):
+ * Failure handling (locked D7 + Phase 18.3 override on step i):
  *   - Validation failure (step b): UPDATE error + processed_at; return 200
  *     (NOT 500 — Stripe retries are wasteful on our own validation bug).
  *   - Idempotency short-circuit (tenants by stripe_subscription_id): mark
  *     processed, return 200 without rollback.
- *   - Any step d-i throw: UPDATE error with chain-of-failures summary, run
+ *   - Any step d-h throw: UPDATE error with chain-of-failures summary, run
  *     rollback (strict reverse order: agents → tenants.owner_agent_id NULL →
  *     tenants → agencies → auth.users LAST), return 500 (processed_at stays
  *     NULL so Stripe retries).
+ *   - Step i (magic-link send) failure: log + UPDATE error + return 500 so
+ *     Stripe retries. NO rollback — the customer paid, all rows stay. Recovery
+ *     is the Stripe redelivery or a manual resend from Supabase Dashboard.
  *
  * Returns a full Response object so the dispatcher can pass it through.
  *
  * Pure module (no Deno imports). The webhook wrapper injects the real admin +
- * stripe clients; tests inject mocks.
+ * stripe clients + magic-link sender; tests inject mocks.
  */
 
 // ---------------------------------------------------------------------------
@@ -46,14 +49,6 @@ export type ProvisioningAdminLike = {
         error: { message: string; status?: number } | null;
       }>;
       deleteUser: (id: string) => Promise<{
-        data: unknown;
-        error: { message: string } | null;
-      }>;
-      generateLink: (params: {
-        type: "magiclink";
-        email: string;
-        options?: { redirectTo?: string };
-      }) => Promise<{
         data: unknown;
         error: { message: string } | null;
       }>;
@@ -107,6 +102,19 @@ export type ProvisioningStripeLike = {
     }>;
   };
 };
+
+/**
+ * Sends a magic link via the Supabase Auth `POST /auth/v1/magiclink` endpoint,
+ * which routes through the project's Custom SMTP config (Resend in prod).
+ * Returns `{ok:true}` on 2xx, `{ok:false,...}` on any non-2xx or network error.
+ *
+ * The pure helper does not import Deno; the webhook wrapper injects a
+ * fetch-based implementation, tests inject a capture mock.
+ */
+export type MagicLinkSender = (params: {
+  email: string;
+  redirect_to: string;
+}) => Promise<{ ok: true } | { ok: false; status?: number; error: string }>;
 
 /** Minimal Stripe event shape we read. */
 export type ProvisioningEvent = {
@@ -254,10 +262,11 @@ export type ProvisioningArgs = {
   stripe: ProvisioningStripeLike;
   event: ProvisioningEvent;
   publicSiteUrl: string;
+  magicLinkSender: MagicLinkSender;
 };
 
 export async function handleNewSignupProvisioning(args: ProvisioningArgs): Promise<Response> {
-  const { admin, stripe, event, publicSiteUrl } = args;
+  const { admin, stripe, event, publicSiteUrl, magicLinkSender } = args;
   const session = event.data.object;
 
   // -------------------------------------------------------------------------
@@ -635,26 +644,44 @@ export async function handleNewSignupProvisioning(args: ProvisioningArgs): Promi
   }
 
   // -------------------------------------------------------------------------
-  // Step i: generate magic link. Direct redirectTo /home — AuthProvider mounts
-  // at the route-tree root in src/App.tsx so the URL fragment processes
-  // before RequireAuth bounces to /login.
+  // Step i: send magic link via SMTP (POST /auth/v1/magiclink). The previous
+  // implementation called admin.auth.admin.generateLink, which only mints a URL
+  // and never triggers the SMTP send — every signup since Phase 18 shipped was
+  // locked out of their freshly-paid dashboard. The injected sender hits the
+  // SMTP-sending endpoint that the Dashboard "Send magic link" button uses.
+  //
+  // redirect_to stays at /home (NOT /auth/callback) because AuthProvider mounts
+  // at the route-tree root in src/App.tsx, so the URL fragment processes before
+  // RequireAuth bounces to /login.
+  //
+  // Failure handling (locked Phase 18.3 override): NO rollback. Customer paid,
+  // every row stays. Stripe retries via 500; manual resend from Supabase
+  // Dashboard is the operator recovery path.
   // -------------------------------------------------------------------------
-  currentStep = "magic_link_generate";
+  currentStep = "magic_link_send";
+  const redirectTo = `${publicSiteUrl}/home`;
+  let sendResult: { ok: true } | { ok: false; status?: number; error: string };
   try {
-    const { error: linkErr } = await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email: lowerEmail,
-      options: { redirectTo: `${publicSiteUrl}/home` },
-    });
-    if (linkErr) {
-      throw new Error(`generateLink failed: ${linkErr.message}`);
-    }
+    sendResult = await magicLinkSender({ email: lowerEmail, redirect_to: redirectTo });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const errorLine = `original: ${currentStep}: ${msg}`;
-    const finalError = await runRollback(errorLine);
-    await writeAuditError(admin, event.id, finalError, { markProcessed: false });
-    return jsonResp(500, { ok: false, error_code: "stripe_call_failed", error_message: msg });
+    sendResult = { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+  if (!sendResult.ok) {
+    const status = sendResult.status;
+    const errMsg = sendResult.error;
+    console.error("magic_link_send_failed", { email: lowerEmail, status, error: errMsg });
+    const statusPrefix = status !== undefined ? `${status} ` : "";
+    await writeAuditError(
+      admin,
+      event.id,
+      `original: magic_link_send: ${statusPrefix}${errMsg}`,
+      { markProcessed: false, tenantId },
+    );
+    return jsonResp(500, {
+      ok: false,
+      error_code: "magic_link_send_failed",
+      error_message: errMsg,
+    });
   }
 
   // -------------------------------------------------------------------------
