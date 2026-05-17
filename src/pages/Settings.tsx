@@ -41,8 +41,10 @@ export function SettingsPage() {
         <ProfileSection />
       </section>
 
-      {/* Account section — available to every authenticated user */}
-      <section className="rounded-2xl glass p-5">
+      {/* Account section — available to every authenticated user.
+          The id="password" anchor is the scroll target for the
+          PasswordSetupBanner CTA on /home (Phase 18.1). */}
+      <section id="password" className="scroll-mt-20 rounded-2xl glass p-5">
         <div className="mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Account

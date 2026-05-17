@@ -23,6 +23,7 @@ import { useMemo } from "react";
 import { ActionBanner } from "@/components/home/ActionBanner";
 import { HeroCard } from "@/components/home/HeroCard";
 import { BroadcastBanner } from "@/components/home/BroadcastBanner";
+import { PasswordSetupBanner } from "@/components/dashboard/PasswordSetupBanner";
 import { QuickActionButtons } from "@/components/dashboard/QuickActionButtons";
 import { LeaderboardsSection } from "@/components/dashboard/LeaderboardsSection";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
@@ -41,6 +42,10 @@ export function HomePage() {
 
   return (
     <div className="space-y-5">
+      {/* Phase 18.1: render above ActionBanner so password setup is the
+          first thing a Phase 18 self-serve signup sees. Hides itself if
+          the user already has a password or has dismissed it this session. */}
+      <PasswordSetupBanner />
       <ActionBanner />
       <HeroCard />
       <BroadcastBanner />

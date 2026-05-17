@@ -8,12 +8,11 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { MarketingPage } from "@/pages/Marketing";
 import { PricingPage } from "@/pages/Pricing";
 import { LoginPage } from "@/pages/Login";
-// Phase 18 PR 2: /signup now binds to PublicSignupPage (the Stripe-checkout
-// flow). The legacy `pages/Signup.tsx` (password-based, no payment) is left
-// dormant on disk per locked R1; cleanup is a follow-up PR.
 import { PublicSignupPage } from "@/pages/PublicSignup";
 import { SignupSuccessPage } from "@/pages/SignupSuccess";
 import { SignupCancelledPage } from "@/pages/SignupCancelled";
+import { LegalTermsPage } from "@/pages/LegalTerms";
+import { LegalPrivacyPage } from "@/pages/LegalPrivacy";
 import { AcceptInvitePage } from "@/pages/AcceptInvite";
 import { ResetPasswordPage } from "@/pages/ResetPassword";
 import { DashboardPage } from "@/pages/Dashboard";
@@ -51,6 +50,11 @@ export default function App() {
           {/* Public pricing page. NOT wrapped in PublicOrRedirect — pricing
               is public to everyone, including logged-in users. */}
           <Route path="/pricing" element={<PricingPage />} />
+
+          {/* Public legal pages. Same posture as /pricing — fully public,
+              no auth, no redirect. */}
+          <Route path="/legal/terms"   element={<LegalTermsPage />} />
+          <Route path="/legal/privacy" element={<LegalPrivacyPage />} />
 
           <Route path="/login"  element={<LoginPage />} />
           <Route path="/signup"           element={<PublicSignupPage />} />

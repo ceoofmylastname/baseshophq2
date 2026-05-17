@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHasPassword } from "@/hooks/useHasPassword";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,22 +10,33 @@ import { Mail, Lock, Check, Eye, EyeOff, ArrowRight, KeyRound } from "lucide-rea
 import { cn } from "@/lib/utils";
 
 /**
- * Phase 16.0: Account section in Settings.
- *
- * Two collapsible sub-cards: change email, change password.
+ * Phase 16.0: Account section in Settings (email + password change).
+ * Phase 18.1: extended in place to support the "set initial password" path
+ * for users who signed up through the public Stripe-checkout flow and
+ * entered via magic link without ever setting a password.
  *
  * Email change: calls supabase.auth.updateUser({ email }). Supabase sends
  * a confirmation email to the NEW address; the change only takes effect
  * after the user clicks the link in that email. Until then they continue
  * to log in with the old email.
  *
- * Password change: re-authenticates with the current password first
- * (signInWithPassword against the current session's email), then calls
- * updateUser({ password }). Supabase doesn't natively gate updateUser on
- * the current password, so the re-auth pattern provides that safety.
+ * Password form smart-branches on useHasPassword():
+ *   - hasPassword === false → "Set Your Password" mode. New + Confirm
+ *     only, no current-password prompt, no re-auth. There is no current
+ *     credential to verify; the existing session (granted by magic link)
+ *     is the proof of identity.
+ *   - hasPassword === true → "Change Password" mode. Preserves the
+ *     Phase 16.0 manual re-auth check (signInWithPassword against the
+ *     current email + entered current password) before calling
+ *     updateUser({ password }). This guardrail must remain whenever the
+ *     user already has a password set; updateUser does not natively gate
+ *     on the old password and we will not weaken that.
+ *   - hasPassword === null (loading) → render a minimal skeleton.
  *
- * Available to every authenticated user. Not owner-gated since every user
- * needs to manage their own credentials.
+ * Hash anchor (Phase 18.1 inline pattern, no generic helper):
+ * if the URL hash is "#password" on mount, switch to the password tab and
+ * smooth-scroll the section into view. The Settings.tsx host renders an
+ * id="password" anchor that we target.
  */
 
 function EmailChangeForm({ currentEmail }: { currentEmail: string }) {
@@ -96,13 +109,108 @@ function EmailChangeForm({ currentEmail }: { currentEmail: string }) {
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={submitting || !newEmail.trim()}>
-        {submitting ? "Sending confirmation…" : <>Send confirmation link <ArrowRight className="ml-1.5 h-4 w-4" /></>}
+        {submitting ? "Sending confirmation..." : <>Send confirmation link <ArrowRight className="ml-1.5 h-4 w-4" /></>}
       </Button>
     </form>
   );
 }
 
-function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
+/**
+ * "Set Your Password" branch (used when hasPassword === false). No current
+ * password prompt, no re-auth check. The existing session is the proof of
+ * identity. After success we call refetch() so the form flips to
+ * "Change Password" mode and any banner pulling from the same hook updates.
+ */
+function SetInitialPasswordForm({ onSuccess }: { onSuccess: () => void }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+    setSubmitting(true);
+    const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+    setSubmitting(false);
+    if (updateErr) {
+      setError(updateErr.message);
+      return;
+    }
+    toast.success("Password set successfully. You can now log in with email and password.");
+    setNewPassword("");
+    setConfirm("");
+    onSuccess();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Set a password to log in with email and password going forward. Magic links remain available.
+      </p>
+      <div className="space-y-2">
+        <Label htmlFor="ac-set-new-pw">New password</Label>
+        <div className="relative">
+          <Input
+            id="ac-set-new-pw"
+            type={showNew ? "text" : "password"}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={8}
+            autoComplete="new-password"
+            className="h-11 border-white/10 bg-white/[0.03] pr-10 focus-visible:ring-primary sm:h-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowNew((s) => !s)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
+            aria-label={showNew ? "Hide password" : "Show password"}
+          >
+            {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">At least 8 characters.</p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="ac-set-confirm-pw">Confirm password</Label>
+        <Input
+          id="ac-set-confirm-pw"
+          type={showNew ? "text" : "password"}
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="h-11 border-white/10 bg-white/[0.03] focus-visible:ring-primary sm:h-10"
+        />
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" disabled={submitting || !newPassword || !confirm}>
+        {submitting ? "Saving..." : "Save password"}
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * "Change Password" branch (used when hasPassword === true). Preserves the
+ * Phase 16.0 manual re-auth check before calling updateUser({password}).
+ * Supabase does not natively gate updateUser on the current password; we
+ * add the check by trying signInWithPassword against the session email. If
+ * that fails the user typed the wrong current password and we abort. This
+ * guardrail is NOT optional for the has-password branch.
+ */
+function PasswordChangeForm({ currentEmail, onSuccess }: { currentEmail: string; onSuccess: () => void }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -112,8 +220,8 @@ function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset-via-email escape hatch for users who don't have a current password
-  // (e.g., invitees who clicked the magic link before /accept-invite shipped).
+  // Reset-via-email escape hatch (Phase 16.0). Catches the case where the
+  // user honestly doesn't remember the current password.
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -151,9 +259,9 @@ function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
 
     setSubmitting(true);
 
-    // Verify the current password by trying to sign in with it. Supabase
-    // doesn't require old-password verification on updateUser, so we add
-    // the check here as a security layer.
+    // Manual re-auth: Supabase does NOT require old-password verification
+    // on updateUser. The signInWithPassword call below adds that gate. Do
+    // NOT remove this for the hasPassword === true branch.
     const { error: signInErr } = await supabase.auth.signInWithPassword({
       email: currentEmail,
       password: currentPassword,
@@ -175,6 +283,7 @@ function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
     setCurrentPassword("");
     setNewPassword("");
     setConfirm("");
+    onSuccess();
     setTimeout(() => setDone(false), 4500);
   }
 
@@ -247,15 +356,9 @@ function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
         </p>
       )}
       <Button type="submit" disabled={submitting || !currentPassword || !newPassword || !confirm}>
-        {submitting ? "Updating…" : "Update password"}
+        {submitting ? "Updating..." : "Update password"}
       </Button>
 
-      {/* Escape hatch: reset via email.
-          Catches the case where the user came in through an invite link
-          (no current password ever set) or honestly doesn't remember.
-          We pre-fill their email and send through the standard
-          forgot-password flow, which lands them on /reset-password where
-          they set a new one without needing the old one. */}
       <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
         <div className="flex items-start gap-3">
           <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -281,7 +384,7 @@ function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
                 disabled={resetSubmitting}
                 className="mt-3"
               >
-                {resetSubmitting ? "Sending…" : "Send me a reset link"}
+                {resetSubmitting ? "Sending..." : "Send me a reset link"}
               </Button>
             )}
           </div>
@@ -293,9 +396,27 @@ function PasswordChangeForm({ currentEmail }: { currentEmail: string }) {
 
 export function AccountSection() {
   const { currentAgent, session } = useAuth();
+  const { hasPassword, refetch } = useHasPassword();
   const [tab, setTab] = useState<"email" | "password">("email");
+  const passwordSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // Hash anchor scroll. If the URL is /settings#password (e.g. from the
+  // PasswordSetupBanner CTA), flip to the password tab and smooth-scroll
+  // the password block into view. Inline per locked D4; no generic helper.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#password") return;
+    setTab("password");
+    // Defer the scroll one tick so the password subtree has rendered.
+    const t = window.setTimeout(() => {
+      passwordSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const userEmail = session?.user?.email ?? currentAgent?.email ?? "";
+
+  const passwordTitle = hasPassword === false ? "Set Your Password" : "Change Password";
 
   return (
     <div className="space-y-4">
@@ -332,15 +453,19 @@ export function AccountSection() {
           )}
         >
           <Lock className="h-3.5 w-3.5" />
-          Change password
+          {passwordTitle}
         </button>
       </div>
 
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+      <div ref={passwordSectionRef} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
         {tab === "email" ? (
           <EmailChangeForm currentEmail={userEmail} />
+        ) : hasPassword === null ? (
+          <div className="h-32 animate-pulse rounded-lg bg-white/[0.03]" />
+        ) : hasPassword === false ? (
+          <SetInitialPasswordForm onSuccess={refetch} />
         ) : (
-          <PasswordChangeForm currentEmail={userEmail} />
+          <PasswordChangeForm currentEmail={userEmail} onSuccess={refetch} />
         )}
       </div>
     </div>

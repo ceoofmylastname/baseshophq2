@@ -3,11 +3,12 @@
  *
  * Re-run when public/seed/agora-life.csv or agora-annuity.csv changes.
  * Outputs the merged bootstrap payload as JSON to:
- *   supabase/functions/signup/agora-payload.json
+ *   public/seed/agora-payload.json
  *
- * The signup edge function imports this JSON statically and passes it as the
- * p_agora_payload argument to provision_tenant_and_owner during signup, so
- * every new tenant lands with the master grid pre-seeded.
+ * The signup-checkout webhook (Phase 18 PR 3) reads this payload during
+ * tenant provisioning so every new tenant lands with the master grid
+ * pre-seeded. The Phase 18.1 cleanup moved the output here from the
+ * legacy supabase/functions/signup/ directory (deleted in that phase).
  *
  * Usage:
  *   bun run scripts/generate-agora-payload.ts
@@ -32,7 +33,7 @@ const life    = parseAgoraCsv(lifeCsv,    "life");
 const annuity = parseAgoraCsv(annuityCsv, "annuity");
 const merged  = mergeBootstrapPayload(life, annuity);
 
-const outputPath = join(root, "supabase/functions/signup/agora-payload.json");
+const outputPath = join(root, "public/seed/agora-payload.json");
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, JSON.stringify(merged) + "\n", "utf-8");
 

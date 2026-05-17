@@ -123,6 +123,7 @@ export function SignupSuccessPage() {
         open={supportOpen}
         onClose={() => setSupportOpen(false)}
         defaultEmail={displayEmail}
+        source="signup-success-no-email"
       />
     </div>
   );

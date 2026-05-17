@@ -1,43 +1,50 @@
 /**
- * Phase 18 PR 2 — ContactSupportModal
+ * Phase 18.1 — ContactSupportModal (rewritten)
  *
- * Lightweight modal opened from /signup/success when the user reports they
- * didn't receive the magic link. Captures email (pre-filled from
- * sessionStorage if present) + optional note, inserts a row into
- * demo_bookings with source='signup-success-no-email'.
+ * Lightweight modal opened from /signup/success (and reusable from anywhere
+ * else that wants a "contact support" surface). Captures email + message,
+ * builds the canonical payload via `buildSupportTicketPayload`, and INSERTs
+ * into the new `public.support_tickets` table.
  *
- * Per locked D8: demo_bookings already has a `source` column, so we use it.
- * Required columns on demo_bookings: name, email, requested_slot. We use a
- * placeholder name ("Magic-link issue") and the current timestamp as the
- * requested_slot since we are not booking a time — just opening a support
- * ticket. The owner triages on Settings → Demo bookings.
+ * The legacy implementation INSERTed into `demo_bookings` with synthetic
+ * `name` / `requested_slot` fields. Phase 18.1 replaces that with a
+ * purpose-built support_tickets table; no reference to demo_bookings remains.
+ *
+ * Subject is server-side defaulted to "Contact request from ${source}" by
+ * buildSupportTicketPayload and is intentionally NOT surfaced as a form
+ * field (locked D11). The `source` prop is required so every ticket carries
+ * its mount point for triage.
  */
 
 import { useEffect, useState, type FormEvent } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { buildSupportTicketPayload } from "@/lib/support-tickets/payload";
 import { cn } from "@/lib/utils";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  source: string;
   defaultEmail?: string;
 };
 
-export function ContactSupportModal({ open, onClose, defaultEmail = "" }: Props) {
+export function ContactSupportModal({ open, onClose, source, defaultEmail = "" }: Props) {
+  const { tenant } = useAuth();
   const [email, setEmail] = useState(defaultEmail);
-  const [note, setNote] = useState("");
+  const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setEmail(defaultEmail);
-      setNote("");
+      setMessage("");
       setError(null);
       setSubmitting(false);
     }
@@ -53,26 +60,32 @@ export function ContactSupportModal({ open, onClose, defaultEmail = "" }: Props)
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    const trimmedMessage = message.trim();
+    if (!trimmedEmail) {
       setError("Email is required.");
       return;
     }
+    if (!trimmedMessage) {
+      setError("Message is required.");
+      return;
+    }
     setSubmitting(true);
-    const { error: insertErr } = await supabase.from("demo_bookings").insert({
-      name: "Magic-link issue",
-      email: email.trim().toLowerCase(),
-      requested_slot: new Date().toISOString(),
-      message: note.trim() || null,
-      source: "signup-success-no-email",
-      user_agent: navigator.userAgent.slice(0, 500),
-      referrer: document.referrer || null,
+    const payload = buildSupportTicketPayload({
+      email: trimmedEmail,
+      message: trimmedMessage,
+      source,
+      tenant_id: tenant?.id ?? null,
     });
+    const { error: insertErr } = await supabase.from("support_tickets").insert(payload);
     setSubmitting(false);
     if (insertErr) {
       setError(insertErr.message || "Submission failed. Try again.");
       return;
     }
-    toast.success("Got it. Support will reach out within one business day.");
+    toast.success(
+      `Thanks. We will get back to you within one business day at ${payload.email}.`,
+    );
     onClose();
   }
 
@@ -130,13 +143,16 @@ export function ContactSupportModal({ open, onClose, defaultEmail = "" }: Props)
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cs-note">Anything support should know (optional)</Label>
+            <Label htmlFor="cs-message">
+              Message <span className="text-destructive">*</span>
+            </Label>
             <textarea
-              id="cs-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              placeholder="e.g. the magic link never arrived, or my inbox is bouncing it"
+              id="cs-message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              required
+              placeholder="Tell us what's going on. The more detail the better."
               className="flex w-full rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
