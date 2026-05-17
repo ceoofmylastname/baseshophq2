@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useRecentActivityFeed, type ActivityEvent } from "@/hooks/useRecentActivityFeed";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+const INITIAL_VISIBLE = 5;
 
 function timeAgo(iso: string): string {
   const d = new Date(iso);
@@ -34,6 +36,15 @@ const TYPE_LABELS: Record<ActivityEvent["event_type"], string> = {
 export function RecentActivityFeed() {
   const { events, loading, hasMore, loadMore, loadingMore } = useRecentActivityFeed();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState<boolean>(false);
+
+  // Client-side cap so a loaded page of 10+ events doesn't dominate the page.
+  // Backend pagination ("Load more") is composed below: it only renders when
+  // the toggle is not actively hiding items, so the two CTAs never contradict
+  // each other.
+  const hasToggle = events.length > INITIAL_VISIBLE;
+  const visibleItems = showAll ? events : events.slice(0, INITIAL_VISIBLE);
+  const showLoadMore = hasMore && (!hasToggle || showAll);
 
   return (
     <div className="overflow-hidden rounded-2xl glass p-4 sm:p-5">
@@ -45,10 +56,13 @@ export function RecentActivityFeed() {
       ) : (
         <>
           <ul className="mt-3 divide-y divide-white/[0.04]">
-            {events.map((e) => {
+            {visibleItems.map((e, i) => {
               const expanded = expandedId === e.id;
               return (
-                <li key={e.id}>
+                <li
+                  key={e.id}
+                  className={cn(i >= INITIAL_VISIBLE && "animate-in fade-in-0 duration-300")}
+                >
                   <button
                     type="button"
                     onClick={() => setExpandedId(expanded ? null : e.id)}
@@ -82,7 +96,21 @@ export function RecentActivityFeed() {
               );
             })}
           </ul>
-          {hasMore && (
+          {hasToggle && (
+            <button
+              type="button"
+              onClick={() => setShowAll((s) => !s)}
+              aria-expanded={showAll}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 border-t border-white/5 py-3 text-sm text-white/60 transition-colors hover:text-white"
+            >
+              {showAll ? (
+                <>Show less <ChevronUp className="h-3.5 w-3.5" /></>
+              ) : (
+                <>Show all activity <ChevronDown className="h-3.5 w-3.5" /></>
+              )}
+            </button>
+          )}
+          {showLoadMore && (
             <div className="mt-3 flex justify-center">
               <Button size="sm" variant="outline" onClick={() => void loadMore()} disabled={loadingMore}>
                 {loadingMore ? "Loading…" : "Load more"}
