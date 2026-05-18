@@ -1,24 +1,25 @@
 /**
- * Phase 19.2 update of useAnnouncements.
+ * useAnnouncements -- announcements read + write hook.
  *
- * Changes from the Phase 10A version:
- *   1. Reads now flow through list_active_announcements() (the Phase 19.1 RPC)
- *      instead of an inline .from("announcements").select(...). Functionally
- *      identical (same WHERE, same ORDER BY) but binds the frontend to the
- *      stable RLS-aware surface that PR 19.3 will also use.
- *   2. Announcement type expands to include updated_by_user_id and updated_at
- *      (Phase 19.1 audit columns). Backwards compatible with existing
- *      consumers (AnnouncementsList, PostAnnouncementDialog) which ignore the
- *      new fields.
- *   3. post() and togglePin() now route through upsert_announcement
- *      (Phase 19.1) instead of the legacy post_announcement RPC and the direct
- *      table UPDATE. Caller API of both methods is unchanged.
- *   4. New update() method for edit-existing-row, used by the Settings
- *      Announcements panel. PR 19.3 will retire the inline Post button on the
- *      dashboard and at that point a small cleanup can drop post_announcement
- *      once nothing references it.
+ * Shape after Phase 19.3:
+ *   - Reads flow through list_active_announcements() (Phase 19.1 RPC):
+ *     tenant-scoped, soft-delete filtered, pinned-first ordering.
+ *   - Announcement type includes updated_by_user_id and updated_at
+ *     (Phase 19.1 audit columns).
+ *   - post(), update(), togglePin() all route through
+ *     upsert_announcement(p_id, p_title, p_body, p_pinned). The legacy
+ *     post_announcement RPC was retired in Phase 19.3 (see
+ *     20260526100000_retire_post_announcement_rpc.sql).
+ *   - remove() calls delete_announcement(p_announcement_id).
  *
- * remove() still calls delete_announcement(p_announcement_id) per D-5.
+ * Consumers:
+ *   - AnnouncementsList (Dashboard, read-only since Phase 19.3) uses
+ *     announcements, remove, togglePin.
+ *   - AnnouncementsManager (Settings, owner-only authoring) uses the full
+ *     surface for create / edit / pin / delete.
+ *
+ * Realtime: postgres_changes subscription on the announcements table fires
+ * refresh() on any INSERT / UPDATE / DELETE for the current tenant.
  */
 
 import { useCallback, useEffect, useState } from "react";
