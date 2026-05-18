@@ -5,6 +5,7 @@ import { ProfileSection } from "@/components/settings/ProfileSection";
 import { BroadcastEditor } from "@/components/settings/BroadcastEditor";
 import { PromotionTargetEditor } from "@/components/settings/PromotionTargetEditor";
 import { PositionEditor } from "@/components/settings/PositionEditor";
+import { AnnouncementsManager } from "@/components/settings/AnnouncementsManager";
 
 /**
  * Settings page hosts BOTH every-user account management (email + password)
@@ -92,6 +93,18 @@ export function SettingsPage() {
               <div className="border-t border-white/[0.06]" />
               <PromotionTargetEditor />
             </div>
+          </section>
+
+          <section className="rounded-2xl glass p-5">
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Announcements
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Greet your team on login. These show on every agent&apos;s /home.
+              </p>
+            </div>
+            <AnnouncementsManager />
           </section>
         </>
       ) : (
